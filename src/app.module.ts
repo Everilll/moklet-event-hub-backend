@@ -1,12 +1,20 @@
-import { PrismaModule } from './prisma/prisma.module';
 import { Module } from '@nestjs/common';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
+import { ConfigService } from '@nestjs/config';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
+
+import { PrismaModule } from './prisma/prisma.module';
 import { AppConfigModule } from './common/config/app-config.module';
 import { HashingModule } from './common/hashing/hashing.module';
 import { UploadModule } from './upload/upload.module';
-import { authEnvSchema } from './common/config/auth-env.schema';
+
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
+
 import { AuthModule } from './auth/auth.module';
+import { authEnvSchema } from './common/config/auth-env.schema';
+
+// Skeleton modules
 import { StudentsModule } from './students/students.module';
 import { ClassesModule } from './classes/classes.module';
 import { EventsModule } from './events/events.module';
@@ -16,8 +24,36 @@ import { TeamsModule } from './teams/teams.module';
 import { RegistrationsModule } from './registrations/registrations.module';
 
 @Module({
-  imports: [AppConfigModule.forProject(authEnvSchema), HashingModule, PrismaModule, UploadModule, AuthModule, StudentsModule, ClassesModule, EventsModule, AnnouncementsModule, ExportModule, TeamsModule, RegistrationsModule],
+  imports: [
+    AppConfigModule.forProject(authEnvSchema), 
+    ThrottlerModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        throttlers: [
+          {
+            ttl: config.get<number>('THROTTLE_TTL')! * 1000,
+            limit: config.get<number>('THROTTLE_LIMIT')!,
+          },
+        ],
+      }),
+    }),
+    HashingModule, 
+    PrismaModule, 
+    UploadModule, 
+
+    AuthModule, 
+    StudentsModule, 
+    ClassesModule, 
+    EventsModule, 
+    AnnouncementsModule, 
+    ExportModule, 
+    TeamsModule, 
+    RegistrationsModule
+  ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
+  ],
 })
 export class AppModule {}
