@@ -46,6 +46,8 @@ model Student {
   nis           String?        @unique
   classId       String         @db.Uuid
   class         Class          @relation(fields: [classId], references: [id], onDelete: Restrict)
+  photoUrl      String?
+  photoPublicId String?
   deletedAt     DateTime?
   account       Account?
   teamMembers   TeamMember[]
@@ -61,31 +63,50 @@ model Account {
   student       Student?       @relation(fields: [studentId], references: [id], onDelete: SetNull)
   events        Event[]
   announcements Announcement[]
+  exportLogs    ExportLog[]
 }
 
 model Event {
-  id          String      @id @default(uuid()) @db.Uuid
-  name        String
-  description String?
-  status      EventStatus @default(ONGOING)
-  eventDate   DateTime
-  createdById String      @db.Uuid
-  createdBy   Account     @relation(fields: [createdById], references: [id], onDelete: Restrict)
-  categories  Category[]
+  id                String          @id @default(uuid()) @db.Uuid
+  name              String
+  description       String?
+  bannerUrl         String?
+  bannerPublicId    String?
+  guidebookUrl      String?
+  guidebookPublicId String?
+  status            EventStatus     @default(ONGOING)
+  eventDate         DateTime
+  createdById       String          @db.Uuid
+  createdBy         Account         @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  categories        Category[]
+  eventSchedules    EventSchedule[]
 
   @@index([status])
 }
 
+model EventSchedule {
+  id                     String   @id @default(uuid()) @db.Uuid
+  eventId                String   @db.Uuid
+  event                  Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  date                   DateTime @db.Date
+  dayLabel               String
+  dresscodeText          String
+  dresscodeImageUrl      String?
+  dresscodeImagePublicId String?
+
+  @@unique([eventId, date])
+}
+
 model Category {
-  id           String         @id @default(uuid()) @db.Uuid
-  name         String
-  minMember    Int            @default(1)
-  maxMember    Int            @default(1)
-  guidebookUrl String
-  eventId      String         @db.Uuid
-  event        Event          @relation(fields: [eventId], references: [id], onDelete: Restrict)
-  teams        Team[]
+  id            String         @id @default(uuid()) @db.Uuid
+  name          String
+  minMember     Int            @default(1)
+  maxMember     Int            @default(1)
+  eventId       String         @db.Uuid
+  event         Event          @relation(fields: [eventId], references: [id], onDelete: Restrict)
+  teams         Team[]
   registrations Registration[]
+  exportLogs    ExportLog[]
 }
 
 model Team {
@@ -113,14 +134,14 @@ model TeamMember {
 }
 
 model Registration {
-  id         String    @id @default(uuid()) @db.Uuid
-  studentId  String    @db.Uuid
-  student    Student   @relation(fields: [studentId], references: [id], onDelete: Restrict)
-  categoryId String    @db.Uuid
-  category   Category  @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  teamId     String?   @db.Uuid
-  team       Team?     @relation(fields: [teamId], references: [id], onDelete: SetNull)
-  createdAt  DateTime  @default(now())
+  id         String   @id @default(uuid()) @db.Uuid
+  studentId  String   @db.Uuid
+  student    Student  @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  categoryId String   @db.Uuid
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  teamId     String?  @db.Uuid
+  team       Team?    @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  createdAt  DateTime @default(now())
 
   @@unique([studentId, categoryId])
 }
@@ -139,6 +160,8 @@ model Announcement {
 model ExportLog {
   id           String   @id @default(uuid()) @db.Uuid
   categoryId   String   @db.Uuid
+  category     Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   exportedById String   @db.Uuid
+  exportedBy   Account  @relation(fields: [exportedById], references: [id], onDelete: Restrict)
   createdAt    DateTime @default(now())
 }
