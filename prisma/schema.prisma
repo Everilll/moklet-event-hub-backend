@@ -12,3 +12,133 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+enum Role {
+  SISWA
+  PANITIA
+  ADMIN_KESISWAAN
+}
+
+enum EventStatus {
+  ONGOING
+  CLOSED
+}
+
+enum TeamStatus {
+  OPEN
+  LOCKED
+  FULL
+  DISQUALIFIED
+}
+
+model Class {
+  id       String    @id @default(uuid()) @db.Uuid
+  grade    String
+  name     String
+  students Student[]
+
+  @@unique([grade, name])
+}
+
+model Student {
+  id            String         @id @default(uuid()) @db.Uuid
+  name          String
+  nis           String?        @unique
+  classId       String         @db.Uuid
+  class         Class          @relation(fields: [classId], references: [id], onDelete: Restrict)
+  deletedAt     DateTime?
+  account       Account?
+  teamMembers   TeamMember[]
+  registrations Registration[]
+}
+
+model Account {
+  id            String         @id @default(uuid()) @db.Uuid
+  email         String         @unique
+  role          Role           @default(SISWA)
+  isVerified    Boolean        @default(false)
+  studentId     String?        @unique @db.Uuid
+  student       Student?       @relation(fields: [studentId], references: [id], onDelete: SetNull)
+  events        Event[]
+  announcements Announcement[]
+}
+
+model Event {
+  id          String      @id @default(uuid()) @db.Uuid
+  name        String
+  description String?
+  status      EventStatus @default(ONGOING)
+  eventDate   DateTime
+  createdById String      @db.Uuid
+  createdBy   Account     @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  categories  Category[]
+
+  @@index([status])
+}
+
+model Category {
+  id           String         @id @default(uuid()) @db.Uuid
+  name         String
+  minMember    Int            @default(1)
+  maxMember    Int            @default(1)
+  guidebookUrl String
+  eventId      String         @db.Uuid
+  event        Event          @relation(fields: [eventId], references: [id], onDelete: Restrict)
+  teams        Team[]
+  registrations Registration[]
+}
+
+model Team {
+  id            String         @id @default(uuid()) @db.Uuid
+  code          String         @unique
+  status        TeamStatus     @default(OPEN)
+  categoryId    String         @db.Uuid
+  category      Category       @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  teamMembers   TeamMember[]
+  registrations Registration[]
+
+  @@index([categoryId])
+}
+
+model TeamMember {
+  id        String   @id @default(uuid()) @db.Uuid
+  teamId    String   @db.Uuid
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  studentId String   @db.Uuid
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  isLeader  Boolean  @default(false)
+  joinedAt  DateTime @default(now())
+
+  @@unique([teamId, studentId])
+}
+
+model Registration {
+  id         String    @id @default(uuid()) @db.Uuid
+  studentId  String    @db.Uuid
+  student    Student   @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  categoryId String    @db.Uuid
+  category   Category  @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  teamId     String?   @db.Uuid
+  team       Team?     @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  createdAt  DateTime  @default(now())
+
+  @@unique([studentId, categoryId])
+}
+
+model Announcement {
+  id          String   @id @default(uuid()) @db.Uuid
+  title       String
+  content     String
+  createdById String   @db.Uuid
+  createdBy   Account  @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+model ExportLog {
+  id           String   @id @default(uuid()) @db.Uuid
+  categoryId   String   @db.Uuid
+  exportedById String   @db.Uuid
+  createdAt    DateTime @default(now())
+}
