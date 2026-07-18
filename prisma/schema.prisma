@@ -64,6 +64,8 @@ model Account {
   events        Event[]
   announcements Announcement[]
   exportLogs    ExportLog[]
+  otpHash       String?
+  otpExpiresAt  DateTime?
 }
 
 model Event {
