@@ -24,8 +24,8 @@ async function bootstrap() {
     new TransformInterceptor(),
   );
   app.useGlobalFilters(
-    new GlobalExceptionFilter(),
     new PrismaExceptionFilter(),
+    new GlobalExceptionFilter(),
   );
 
   const config = new DocumentBuilder()
