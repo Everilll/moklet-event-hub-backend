@@ -31,6 +31,13 @@ enum TeamStatus {
   DISQUALIFIED
 }
 
+model SystemSetting {
+  id                  String   @id @default(uuid()) @db.Uuid
+  currentTopAngkatan  Int
+  currentAcademicYear String   // 2026/2027
+  updatedAt           DateTime @updatedAt
+}
+
 model Class {
   id       String    @id @default(uuid()) @db.Uuid
   grade    String
