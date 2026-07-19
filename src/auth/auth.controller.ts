@@ -7,13 +7,14 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { 
-  ApiBearerAuth, 
-  ApiTags, 
-  ApiOperation, 
-  ApiResponse, 
-  ApiCreatedResponse, 
-  ApiOkResponse 
+import { Throttle } from '@nestjs/throttler';
+import {
+  ApiBearerAuth,
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiCreatedResponse,
+  ApiOkResponse,
 } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { OtpService } from './otp/otp.service';
@@ -24,6 +25,11 @@ import { RequestOtpDto } from './dto/request-otp.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { BindIdentityDto } from './dto/bind-identity.dto';
 import { CreatePanitiaDto } from './dto/create-panitia.dto';
+import { RegisterDto } from './dto/register.dto';
+import { LoginDto } from './dto/login.dto';
+import { SetupPasswordDto } from './dto/setup-password.dto';
+import { RequestPasswordResetDto } from './dto/request-password-reset.dto';
+import { VerifyPasswordResetDto } from './dto/verify-password-reset.dto';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RawResponse, MessageResponse } from '../common/interceptors/transform.interceptor';
@@ -39,7 +45,7 @@ export class AuthController {
 
   @Get('google')
   @UseGuards(GoogleAuthGuard)
-  @ApiOperation({ summary: 'Memicu login menggunakan Google OAuth' })
+  @ApiOperation({ summary: 'Memicu login menggunakan Google OAuth (siswa)' })
   @ApiResponse({ status: 302, description: 'Mengalihkan pengguna ke halaman login Google.' })
   googleLogin() {}
 
@@ -50,6 +56,66 @@ export class AuthController {
   async googleCallback(@CurrentUser() profile: GoogleProfilePayload) {
     const result = await this.authService.handleGoogleLogin(profile);
     return new RawResponse(result);
+  }
+
+  @Post('register')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Register tradisional (email + password) — khusus siswa' })
+  @ApiOkResponse({ description: 'Akun dibuat, kode OTP dikirim ke email untuk verifikasi.' })
+  async register(@Body() dto: RegisterDto) {
+    await this.authService.register(dto.email, dto.password);
+    return new MessageResponse(
+      null,
+      'Registrasi berhasil, kode OTP telah dikirim ke email kamu',
+    );
+  }
+
+  @Post('login')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @ApiOperation({ summary: 'Login menggunakan email + password' })
+  @ApiOkResponse({ description: 'Login berhasil, mengembalikan JWT.' })
+  @ApiResponse({ status: 401, description: 'Email atau password salah.' })
+  async login(@Body() dto: LoginDto) {
+    const token = await this.authService.login(dto.email, dto.password);
+    return new RawResponse({ token });
+  }
+
+  @Post('setup-password')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('access-token')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Setup password (khusus siswa jalur Google, sekali saja)' })
+  @ApiOkResponse({ description: 'Password berhasil diatur.' })
+  @ApiResponse({ status: 400, description: 'Password sudah pernah diatur sebelumnya.' })
+  async setupPassword(
+    @CurrentUser('sub') accountId: string,
+    @Body() dto: SetupPasswordDto,
+  ) {
+    await this.authService.setupPassword(accountId, dto.password);
+    return new MessageResponse(null, 'Password berhasil diatur');
+  }
+
+  @Post('password/reset-request')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Minta kode OTP untuk reset password (siswa & panitia)' })
+  @ApiOkResponse({ description: 'Jika email terdaftar, kode OTP akan dikirim.' })
+  async requestPasswordReset(@Body() dto: RequestPasswordResetDto) {
+    await this.authService.requestPasswordReset(dto.email);
+    return new MessageResponse(
+      null,
+      'Jika email terdaftar, kode OTP telah dikirim',
+    );
+  }
+
+  @Post('password/reset-verify')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Verifikasi OTP dan set password baru' })
+  @ApiOkResponse({ description: 'Password berhasil diubah.' })
+  @ApiResponse({ status: 401, description: 'Kode OTP tidak valid atau kedaluwarsa.' })
+  async verifyPasswordReset(@Body() dto: VerifyPasswordResetDto) {
+    await this.authService.resetPassword(dto.email, dto.code, dto.newPassword);
+    return new MessageResponse(null, 'Password berhasil diubah, silakan login kembali');
   }
 
   @Post('otp/request')
@@ -75,15 +141,29 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('access-token')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Menghubungkan akun Google dengan data Siswa (Identity Binding)' })
-  @ApiOkResponse({ description: 'Akun berhasil ditautkan ke identitas siswa.' })
+  @ApiOperation({ summary: 'Menghubungkan akun dengan data Siswa (Identity Binding)' })
+  @ApiOkResponse({ description: 'Akun berhasil ditautkan ke identitas siswa. Mengembalikan JWT token baru.' })
   @ApiResponse({ status: 409, description: 'Konflik! Siswa sudah terikat dengan akun lain.' })
   async bindIdentity(
     @CurrentUser('sub') accountId: string,
     @Body() dto: BindIdentityDto,
   ) {
-    const updated = await this.authService.bindIdentity(accountId, dto.studentId);
-    return new MessageResponse(updated, 'Berhasil menghubungkan akun ke data siswa');
+    const updatedAccount = await this.authService.bindIdentity(accountId, dto.studentId);
+    
+    const newToken = this.authService.issueToken(updatedAccount); 
+    
+    return new MessageResponse(
+      {
+        token: newToken,
+        account: {
+          id: updatedAccount.id,
+          email: updatedAccount.email,
+          role: updatedAccount.role,
+          studentId: updatedAccount.studentId,
+        },
+      },
+      'Berhasil menghubungkan akun ke data siswa'
+    );
   }
 
   @Post('panitia')
@@ -93,10 +173,10 @@ export class AuthController {
   @ApiOperation({ summary: 'Membuat akun panitia baru (Khusus Kesiswaan)' })
   @ApiCreatedResponse({ description: 'Akun panitia berhasil didaftarkan di sistem.' })
   async createPanitia(@Body() dto: CreatePanitiaDto) {
-    const created = await this.authService.createPanitia(dto.email);
+    const created = await this.authService.createPanitia(dto.email, dto.password);
     return new MessageResponse(
       created,
-      'Akun panitia dibuat. Panitia login pertama kali lewat OTP di email tersebut.',
+      'Akun panitia dibuat. Panitia bisa langsung login pakai email & password ini.',
     );
   }
 

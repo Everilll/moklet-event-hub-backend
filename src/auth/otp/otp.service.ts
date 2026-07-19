@@ -6,6 +6,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
 import { HashingService } from '../../common/hashing/hashing.service';
+import { assertStudentDomain } from '../utils/domain.util';
 import * as nodemailer from 'nodemailer';
 import { randomInt } from 'node:crypto';
 
@@ -69,34 +70,14 @@ export class OtpService {
     return String(randomInt(min, max + 1));
   }
 
-  private assertAllowedDomain(email: string) {
-    const domain = email.split('@')[1];
-    if (domain !== this.allowedHd) {
-      throw new BadRequestException(
-        `Hanya email institusi siswa (@${this.allowedHd}) yang bisa mendaftar sendiri. ` +
-          `Akun panitia dibuatkan oleh Admin Kesiswaan.`,
-      );
-    }
-  }
-
-  async requestOtp(email: string): Promise<void> {
-    this.checkRateLimit(email);
-
-    const existing = await this.prisma.account.findUnique({ where: { email } });
-
-    if (existing) {
-    } else {
-      this.assertAllowedDomain(email);
-    }
-
+  private async sendCode(email: string): Promise<void> {
     const code = this.generateCode();
     const otpHash = this.hashing.hash(code);
     const otpExpiresAt = new Date(Date.now() + this.ttlSeconds * 1000);
 
-    await this.prisma.account.upsert({
+    await this.prisma.account.update({
       where: { email },
-      create: { email, otpHash, otpExpiresAt },
-      update: { otpHash, otpExpiresAt },
+      data: { otpHash, otpExpiresAt },
     });
 
     await this.transporter.sendMail({
@@ -105,6 +86,26 @@ export class OtpService {
       subject: 'Kode Verifikasi Moklet Event Hub',
       text: `Kode OTP kamu: ${code} (berlaku ${Math.floor(this.ttlSeconds / 60)} menit). Jangan bagikan kode ini ke siapa pun.`,
     });
+  }
+
+  async requestOtp(email: string): Promise<void> {
+    this.checkRateLimit(email);
+
+    const existing = await this.prisma.account.findUnique({ where: { email } });
+
+    if (!existing) {
+      assertStudentDomain(email, this.allowedHd);
+      await this.prisma.account.create({ data: { email } });
+    }
+
+    await this.sendCode(email);
+  }
+
+  async sendCodeIfAccountExists(email: string): Promise<void> {
+    this.checkRateLimit(email);
+    const existing = await this.prisma.account.findUnique({ where: { email } });
+    if (!existing) return;
+    await this.sendCode(email);
   }
 
   async verifyOtp(email: string, code: string): Promise<void> {
@@ -126,6 +127,26 @@ export class OtpService {
     await this.prisma.account.update({
       where: { email },
       data: { isVerified: true, otpHash: null, otpExpiresAt: null },
+    });
+  }
+
+  async verifyOtpForPasswordReset(email: string, code: string): Promise<void> {
+    const account = await this.prisma.account.findUnique({ where: { email } });
+
+    if (!account || !account.otpHash || !account.otpExpiresAt) {
+      throw new UnauthorizedException('OTP tidak ditemukan, minta kode baru');
+    }
+    if (account.otpExpiresAt.getTime() < Date.now()) {
+      throw new UnauthorizedException('OTP sudah kedaluwarsa, minta kode baru');
+    }
+    const isValid = this.hashing.verify(code, account.otpHash);
+    if (!isValid) {
+      throw new UnauthorizedException('Kode OTP salah');
+    }
+
+    await this.prisma.account.update({
+      where: { email },
+      data: { otpHash: null, otpExpiresAt: null },
     });
   }
 }

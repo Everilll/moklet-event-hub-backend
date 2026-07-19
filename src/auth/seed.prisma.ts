@@ -1,11 +1,13 @@
-import { PrismaService } from "src/prisma/prisma.service";
+import { PrismaPg } from '@prisma/adapter-pg';
+import { PrismaClient } from 'generated/prisma/client';
+import { Pool } from 'pg';
 
-const prisma = new PrismaService();
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const adapter = new PrismaPg(pool);
+const prisma = new PrismaClient({ adapter });
 
 async function main() {
-  await prisma.onModuleInit();
-
-  const email = process.env.SEED_ADMIN_EMAIL || '';
+  const email = process.env.SEED_ADMIN_EMAIL ?? 'kesiswaan@smktelkom-mlg.sch.id';
 
   const existing = await prisma.account.findUnique({ where: { email } });
   if (existing) {
@@ -18,6 +20,7 @@ async function main() {
   });
 
   console.log('Akun ADMIN_KESISWAAN dibuat:', admin.email);
+  console.log('Login pertama kali lewat POST /auth/otp/request dengan email ini.');
 }
 
 main()
@@ -26,5 +29,5 @@ main()
     process.exit(1);
   })
   .finally(async () => {
-    await prisma.onModuleDestroy();
+    await prisma.$disconnect();
   });

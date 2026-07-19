@@ -57,6 +57,7 @@ model Student {
 model Account {
   id            String         @id @default(uuid()) @db.Uuid
   email         String         @unique
+  passwordHash  String?
   role          Role           @default(SISWA)
   isVerified    Boolean        @default(false)
   studentId     String?        @unique @db.Uuid
