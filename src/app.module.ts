@@ -22,6 +22,7 @@ import { AnnouncementsModule } from './announcements/announcements.module';
 import { ExportModule } from './export/export.module';
 import { TeamsModule } from './teams/teams.module';
 import { RegistrationsModule } from './registrations/registrations.module';
+import { SystemSettingModule } from './system-setting/system-setting.module';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { RegistrationsModule } from './registrations/registrations.module';
     AuthModule, 
     StudentsModule, 
     ClassesModule, 
+    SystemSettingModule,
     EventsModule, 
     AnnouncementsModule, 
     ExportModule, 
