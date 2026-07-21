@@ -48,50 +48,66 @@ model Class {
 }
 
 model Student {
-  id            String         @id @default(uuid()) @db.Uuid
-  name          String
-  nis           String?        @unique
-  classId       String         @db.Uuid
-  class         Class          @relation(fields: [classId], references: [id], onDelete: Restrict)
-  photoUrl      String?
-  photoPublicId String?
-  deletedAt     DateTime?
-  account       Account?
-  teamMembers   TeamMember[]
-  registrations Registration[]
+  id                    String                 @id @default(uuid()) @db.Uuid
+  name                  String
+  nis                   String?                @unique
+  classId               String                 @db.Uuid
+  class                 Class                  @relation(fields: [classId], references: [id], onDelete: Restrict)
+  photoUrl              String?
+  photoPublicId         String?
+  deletedAt             DateTime?
+  account               Account?
+  teamMembers           TeamMember[]
+  registrations         Registration[]
+  eventCommitteeMembers EventCommitteeMember[]
 }
 
 model Account {
-  id            String         @id @default(uuid()) @db.Uuid
-  email         String         @unique
-  passwordHash  String?
-  role          Role           @default(SISWA)
-  isVerified    Boolean        @default(false)
-  studentId     String?        @unique @db.Uuid
-  student       Student?       @relation(fields: [studentId], references: [id], onDelete: SetNull)
-  events        Event[]
-  announcements Announcement[]
-  exportLogs    ExportLog[]
-  otpHash       String?
-  otpExpiresAt  DateTime?
+  id                    String                 @id @default(uuid()) @db.Uuid
+  email                 String                 @unique
+  passwordHash          String?
+  role                  Role                   @default(SISWA)
+  isVerified            Boolean                @default(false)
+  studentId             String?                @unique @db.Uuid
+  student               Student?               @relation(fields: [studentId], references: [id], onDelete: SetNull)
+  events                Event[]
+  announcements         Announcement[]
+  exportLogs            ExportLog[]
+  otpHash               String?
+  otpExpiresAt          DateTime?
+  eventCommitteeMembers EventCommitteeMember[]
 }
 
 model Event {
-  id                String          @id @default(uuid()) @db.Uuid
-  name              String
-  description       String?
-  bannerUrl         String?
-  bannerPublicId    String?
-  guidebookUrl      String?
-  guidebookPublicId String?
-  status            EventStatus     @default(ONGOING)
-  eventDate         DateTime
-  createdById       String          @db.Uuid
-  createdBy         Account         @relation(fields: [createdById], references: [id], onDelete: Restrict)
-  categories        Category[]
-  eventSchedules    EventSchedule[]
+  id                    String                 @id @default(uuid()) @db.Uuid
+  name                  String
+  description           String?
+  bannerUrl             String?
+  bannerPublicId        String?
+  guidebookUrl          String?
+  guidebookPublicId     String?
+  status                EventStatus            @default(ONGOING)
+  eventDate             DateTime
+  createdById           String                 @db.Uuid
+  createdBy             Account                @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  categories            Category[]
+  eventSchedules        EventSchedule[]
+  eventCommitteeMembers EventCommitteeMember[]
 
   @@index([status])
+}
+
+model EventCommitteeMember {
+  id        String   @id @default(uuid()) @db.Uuid
+  eventId   String   @db.Uuid
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  studentId String   @db.Uuid
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  addedById String   @db.Uuid
+  addedBy   Account  @relation(fields: [addedById], references: [id], onDelete: Restrict)
+  createdAt DateTime @default(now())
+
+  @@unique([eventId, studentId])
 }
 
 model EventSchedule {
