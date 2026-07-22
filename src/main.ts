@@ -13,7 +13,7 @@ async function bootstrap() {
   // ── Injected by @averildwi/nest-common ──
   const allowedOrigins = process.env.FRONTEND_URL
     ? process.env.FRONTEND_URL.split(',')
-    : '*';
+    : [];
   app.enableCors({
     origin: allowedOrigins,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
