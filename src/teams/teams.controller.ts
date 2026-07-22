@@ -104,10 +104,10 @@ export class TeamsController {
   @ApiResponse({ status: 404, description: 'Tim tidak ditemukan' })
   async updateStatus(
     @Param('id') teamId: string,
-    @CurrentUser('sub') accountId: string,
+    @CurrentUser() user: JwtPayload,
     @Body() _dto: UpdateTeamStatusDto,
   ) {
-    const team = await this.teamsService.disqualify(accountId, teamId);
+    const team = await this.teamsService.disqualify(user.sub, teamId);
     return new MessageResponse(team, 'Tim berhasil didiskualifikasi');
   }
 

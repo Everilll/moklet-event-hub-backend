@@ -8,6 +8,11 @@ import { randomInt } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventOwnershipService } from '../events/event-ownership.service';
 import { assertStudentEligible } from '../common/helpers/assert-student-eligible';
+import {
+  resolveGroupKey,
+  validateGroupKeyMatch,
+  checkAndConfirmQuota,
+} from '../common/helpers/quota.helper';
 import { CreateTeamDto } from './dto/create-team.dto';
 import { LeaveTeamDto } from './dto/leave-team.dto';
 
@@ -33,9 +38,15 @@ export class TeamsService {
    * Create team + daftarkan leader, dalam SATU transaction. Kalau salah
    * satu langkah gagal (mis. constraint anti-daftar-ganda kena), semua
    * rollback -- tidak ada Team yatim tanpa leader.
+   *
+   * Quota logic (anti-troll):
+   * - Tim dibuat dengan quotaConfirmed = false
+   * - Begitu jumlah anggota capai minMember, cek kuota groupKey
+   * - Kalau slot masih ada → quotaConfirmed = true (one-way flag)
+   * - Kalau slot penuh → tolak (rollback seluruh transaction)
    */
   async create(studentId: string, dto: CreateTeamDto) {
-    await assertStudentEligible(this.prisma, studentId);
+    const student = await assertStudentEligible(this.prisma, studentId);
 
     const category = await this.prisma.category.findUnique({ where: { id: dto.categoryId } });
     if (!category) throw new NotFoundException('Cabang lomba tidak ditemukan');
@@ -45,11 +56,19 @@ export class TeamsService {
       );
     }
 
+    const groupKey = resolveGroupKey(category.teamCompositionMode, student);
     const code = await this.generateUniqueCode();
 
     return this.prisma.$transaction(async (tx) => {
       const team = await tx.team.create({
-        data: { code, status: 'OPEN', categoryId: dto.categoryId },
+        data: {
+          name: dto.name,
+          code,
+          status: 'OPEN',
+          categoryId: dto.categoryId,
+          groupKey,
+          quotaConfirmed: false,
+        },
       });
 
       await tx.teamMember.create({
@@ -65,6 +84,10 @@ export class TeamsService {
         data: { studentId, categoryId: dto.categoryId, teamId: team.id },
       });
 
+      // Cek kuota setelah leader masuk (1 anggota)
+      // Kalau minMember = 1, langsung cek kuota & confirm
+      await checkAndConfirmQuota(tx, team.id, category, 1);
+
       return tx.team.findUniqueOrThrow({
         where: { id: team.id },
         include: { teamMembers: true },
@@ -76,9 +99,13 @@ export class TeamsService {
    * TITIK PALING KRITIS: join tim by code. Row lock (SELECT ... FOR
    * UPDATE) dalam transaction supaya dua siswa yang join bersamaan pada
    * slot terakhir tidak sama-sama lolos melebihi maxMember.
+   *
+   * Di mode PER_CLASS / PER_ANGKATAN:
+   * - Validasi groupKey cocok (anggota baru harus dari kelas/angkatan yang sama)
+   * - Cek kuota saat anggota memenuhi minMember
    */
   async join(studentId: string, code: string) {
-    await assertStudentEligible(this.prisma, studentId);
+    const student = await assertStudentEligible(this.prisma, studentId);
 
     const teamLookup = await this.prisma.team.findUnique({ where: { code } });
     if (!teamLookup) throw new NotFoundException('Kode tim tidak ditemukan');
@@ -111,6 +138,11 @@ export class TeamsService {
         throw new BadRequestException('Tim ini sudah penuh');
       }
 
+      // Validasi groupKey: di mode terbatas, anggota baru harus dari
+      // kelas/angkatan yang sama dengan tim
+      const joinerGroupKey = resolveGroupKey(team.category.teamCompositionMode, student);
+      validateGroupKeyMatch(team.groupKey, joinerGroupKey, team.category.teamCompositionMode);
+
       await tx.teamMember.create({
         data: { teamId, studentId, isLeader: false },
       });
@@ -122,6 +154,10 @@ export class TeamsService {
       });
 
       const newCount = currentCount + 1;
+
+      // Cek kuota: kalau ini anggota yang ke-minMember, cek & confirm kuota
+      await checkAndConfirmQuota(tx, teamId, team.category, newCount);
+
       if (newCount >= team.category.maxMember) {
         await tx.team.update({ where: { id: teamId }, data: { status: 'FULL' } });
       }
@@ -137,6 +173,9 @@ export class TeamsService {
    * Leave team. Leadership TIDAK otomatis ditebak sistem -- kalau yang
    * leave adalah leader dan tim masih ada anggota lain, WAJIB tunjuk
    * pengganti eksplisit lewat newLeaderStudentId.
+   *
+   * quotaConfirmed TETAP true meskipun anggota berkurang di bawah
+   * minMember (one-way flag). Slot kuota baru lepas kalau tim dihapus total.
    */
   async leave(studentId: string, teamId: string, dto: LeaveTeamDto) {
     return this.prisma.$transaction(async (tx) => {
@@ -186,6 +225,7 @@ export class TeamsService {
 
       if (remainingMembers.length === 0) {
         // Tim kosong -- hapus sekalian, kode tim jadi bebas lagi.
+        // quotaConfirmed otomatis lepas karena row Team-nya dihapus.
         await tx.team.delete({ where: { id: teamId } });
         return { deleted: true, teamId };
       }
@@ -226,7 +266,7 @@ export class TeamsService {
   }
 
   /**
-   * Disqualify -- khusus PANITIA yang jadi ketua Event terkait (lewat
+   * Disqualify -- khusus PANITIA/Committee yang manage Event terkait (lewat
    * Category -> Event). Final state, tidak bisa balik ke status lain.
    */
   async disqualify(accountId: string, teamId: string) {
@@ -236,7 +276,7 @@ export class TeamsService {
     });
     if (!team) throw new NotFoundException('Tim tidak ditemukan');
 
-    await this.ownership.assertOwner(team.category.eventId, accountId);
+    await this.ownership.assertCanManage(team.category.eventId, accountId);
 
     return this.prisma.team.update({ where: { id: teamId }, data: { status: 'DISQUALIFIED' } });
   }
