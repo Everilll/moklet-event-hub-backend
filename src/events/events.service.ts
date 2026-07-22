@@ -22,10 +22,6 @@ export class EventsService {
     });
   }
 
-  /**
-   * Listing publik cuma nampilin ONGOING — event yang sudah CLOSED
-   * dikecualikan (sesuai desain awal: soft-close via status, bukan hapus).
-   */
   async findAll(pagination: PaginationDto) {
     const { skip, limit = 20, page = 1 } = pagination;
     const [data, total] = await Promise.all([
@@ -50,7 +46,7 @@ export class EventsService {
   }
 
   async update(id: string, accountId: string, dto: UpdateEventDto) {
-    await this.ownership.assertOwner(id, accountId);
+    await this.ownership.assertCanManage(id, accountId);
     return this.prisma.event.update({
       where: { id },
       data: { ...dto, ...(dto.eventDate && { eventDate: new Date(dto.eventDate) }) },
@@ -58,12 +54,12 @@ export class EventsService {
   }
 
   async updateStatus(id: string, accountId: string, dto: UpdateEventStatusDto) {
-    await this.ownership.assertOwner(id, accountId);
+    await this.ownership.assertCanManage(id, accountId);
     return this.prisma.event.update({ where: { id }, data: { status: dto.status } });
   }
 
   async updateBanner(id: string, accountId: string, file: Express.Multer.File) {
-    const event = await this.ownership.assertOwner(id, accountId);
+    const event = await this.ownership.assertCanManage(id, accountId);
 
     if (event.bannerPublicId) {
       await this.uploadService.deleteFile(event.bannerPublicId, 'image');
@@ -77,7 +73,7 @@ export class EventsService {
   }
 
   async updateGuidebook(id: string, accountId: string, file: Express.Multer.File) {
-    const event = await this.ownership.assertOwner(id, accountId);
+    const event = await this.ownership.assertCanManage(id, accountId);
 
     if (event.guidebookPublicId) {
       await this.uploadService.deleteFile(event.guidebookPublicId, 'raw');

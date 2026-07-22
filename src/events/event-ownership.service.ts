@@ -7,10 +7,10 @@ export class EventOwnershipService {
 
   /**
    * Cuma Account yang createdById-nya cocok (ketua event) yang boleh
-   * lolos. Dipakai di EventsService, CategoriesService, SchedulesService,
-   * dan CommitteeService — supaya aturan "cuma yang bikin event yang bisa
-   * manage" konsisten di semua sub-resource, bukan dicek ulang beda-beda
-   * di tiap service.
+   * lolos. Dipakai KHUSUS untuk operasi yang hanya boleh dilakukan ketua:
+   * - Tambah/hapus committee member
+   * - Hapus event
+   * - Transfer ownership
    */
   async assertOwner(eventId: string, accountId: string) {
     const event = await this.prisma.event.findUnique({ where: { id: eventId } });
@@ -22,11 +22,15 @@ export class EventOwnershipService {
   }
 
   /**
-   * Dipakai untuk endpoint read-only yang boleh diakses ketua ATAU
-   * anggota divisi yang sudah ditambahkan ke event tersebut (mis. lihat
-   * daftar pendaftar) — beda dari assertOwner() yang cuma untuk ketua.
+   * Dipakai untuk endpoint WRITE management event yang boleh diakses
+   * ketua ATAU committee member. Menggantikan assertOwner di:
+   * - Edit event, banner, guidebook, status
+   * - Category CRUD
+   * - Schedule CRUD
+   * - Disqualify teams
+   * - Buat announcement event-scoped
    */
-  async assertOwnerOrCommitteeMember(eventId: string, accountId: string) {
+  async assertCanManage(eventId: string, accountId: string) {
     const event = await this.prisma.event.findUnique({
       where: { id: eventId },
       include: {
@@ -37,14 +41,26 @@ export class EventOwnershipService {
     });
     if (!event) throw new NotFoundException('Event tidak ditemukan');
 
+    // Ketua event → langsung boleh
     if (event.createdById === accountId) return event;
 
+    // Committee member → boleh manage
     const isCommitteeMember = event.eventCommitteeMembers.some(
       (m) => m.student.account?.id === accountId,
     );
     if (!isCommitteeMember) {
-      throw new ForbiddenException('Kamu tidak punya akses ke event ini');
+      throw new ForbiddenException('Kamu tidak punya akses untuk mengelola event ini');
     }
     return event;
+  }
+
+  /**
+   * Dipakai untuk endpoint read-only yang boleh diakses ketua ATAU
+   * anggota divisi yang sudah ditambahkan ke event tersebut (mis. lihat
+   * daftar pendaftar) — sama dengan assertCanManage tapi intent-nya beda
+   * (read vs write), dipisah untuk clarity.
+   */
+  async assertOwnerOrCommitteeMember(eventId: string, accountId: string) {
+    return this.assertCanManage(eventId, accountId);
   }
 }

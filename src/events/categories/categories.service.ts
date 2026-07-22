@@ -18,7 +18,7 @@ export class CategoriesService {
   }
 
   async create(eventId: string, accountId: string, dto: CreateCategoryDto) {
-    await this.ownership.assertOwner(eventId, accountId);
+    await this.ownership.assertCanManage(eventId, accountId);
     this.assertMinMax(dto.minMember, dto.maxMember);
     return this.prisma.category.create({ data: { ...dto, eventId } });
   }
@@ -35,7 +35,7 @@ export class CategoriesService {
 
   async update(id: string, accountId: string, dto: UpdateCategoryDto) {
     const category = await this.findOneOrThrow(id);
-    await this.ownership.assertOwner(category.eventId, accountId);
+    await this.ownership.assertCanManage(category.eventId, accountId);
 
     const minMember = dto.minMember ?? category.minMember;
     const maxMember = dto.maxMember ?? category.maxMember;
@@ -46,10 +46,8 @@ export class CategoriesService {
 
   async remove(id: string, accountId: string) {
     const category = await this.findOneOrThrow(id);
-    await this.ownership.assertOwner(category.eventId, accountId);
-    // onDelete: Restrict di Registration.categoryId & Team.categoryId ->
-    // Prisma otomatis menolak (P2003/P2014, ditangkap PrismaExceptionFilter)
-    // kalau kategori ini masih punya tim/pendaftar.
+    await this.ownership.assertCanManage(category.eventId, accountId);
+    // onDelete: Restrict in Registration.categoryId & Team.categoryId
     await this.prisma.category.delete({ where: { id } });
   }
 }
