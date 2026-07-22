@@ -1,8 +1,8 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsUUID } from 'class-validator';
 
-export class CreateTeamDto {
-  @ApiProperty({ description: 'Category.id — harus maxMember > 1' })
+export class IndividualRegistrationDto {
+  @ApiProperty({ description: 'Category.id — harus maxMember === 1' })
   @IsUUID()
   categoryId: string;
 }
