@@ -1,4 +1,7 @@
-import { PartialType } from '@nestjs/swagger';
+import { PartialType, OmitType } from '@nestjs/swagger';
 import { CreateAnnouncementDto } from './create-announcement.dto';
 
-export class UpdateAnnouncementDto extends PartialType(CreateAnnouncementDto) {}
+// eventId tidak bisa diubah setelah dibuat — pengumuman tetap global atau tetap event-scoped
+export class UpdateAnnouncementDto extends PartialType(
+  OmitType(CreateAnnouncementDto, ['eventId'] as const),
+) {}

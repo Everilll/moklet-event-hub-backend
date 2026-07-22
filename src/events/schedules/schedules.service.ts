@@ -14,7 +14,7 @@ export class SchedulesService {
   ) {}
 
   async create(eventId: string, accountId: string, dto: CreateScheduleDto) {
-    await this.ownership.assertOwner(eventId, accountId);
+    await this.ownership.assertCanManage(eventId, accountId);
     return this.prisma.eventSchedule.create({
       data: { ...dto, date: new Date(dto.date), eventId },
     });
@@ -35,7 +35,7 @@ export class SchedulesService {
 
   async update(id: string, accountId: string, dto: UpdateScheduleDto) {
     const schedule = await this.findOneOrThrow(id);
-    await this.ownership.assertOwner(schedule.eventId, accountId);
+    await this.ownership.assertCanManage(schedule.eventId, accountId);
     return this.prisma.eventSchedule.update({
       where: { id },
       data: { ...dto, ...(dto.date && { date: new Date(dto.date) }) },
@@ -44,7 +44,7 @@ export class SchedulesService {
 
   async updateDresscodeImage(id: string, accountId: string, file: Express.Multer.File) {
     const schedule = await this.findOneOrThrow(id);
-    await this.ownership.assertOwner(schedule.eventId, accountId);
+    await this.ownership.assertCanManage(schedule.eventId, accountId);
 
     if (schedule.dresscodeImagePublicId) {
       await this.uploadService.deleteFile(schedule.dresscodeImagePublicId, 'image');
@@ -59,7 +59,7 @@ export class SchedulesService {
 
   async remove(id: string, accountId: string) {
     const schedule = await this.findOneOrThrow(id);
-    await this.ownership.assertOwner(schedule.eventId, accountId);
+    await this.ownership.assertCanManage(schedule.eventId, accountId);
     await this.prisma.eventSchedule.delete({ where: { id } });
   }
 }
