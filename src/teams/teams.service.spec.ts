@@ -122,16 +122,18 @@ import * as assertEligible from '../common/helpers/assert-student-eligible';
 describe('TeamsService.join', () => {
   let service: TeamsService;
   let tx: {
-    team: { findUniqueOrThrow: jest.Mock; update: jest.Mock };
+    team: { findUniqueOrThrow: jest.Mock; update: jest.Mock; count: jest.Mock };
     teamMember: { create: jest.Mock };
     registration: { create: jest.Mock };
     $queryRaw: jest.Mock;
   };
   let prisma: { $transaction: jest.Mock; team: { findUnique: jest.Mock } };
 
+  const mockStudent = { id: 'student-2', classId: 'class-1', angkatan: 30 };
+
   beforeEach(async () => {
     tx = {
-      team: { findUniqueOrThrow: jest.fn(), update: jest.fn() },
+      team: { findUniqueOrThrow: jest.fn(), update: jest.fn(), count: jest.fn().mockResolvedValue(0) },
       teamMember: { create: jest.fn() },
       registration: { create: jest.fn() },
       $queryRaw: jest.fn(),
@@ -150,22 +152,29 @@ describe('TeamsService.join', () => {
     }).compile();
 
     service = module.get<TeamsService>(TeamsService);
-    jest.spyOn(assertEligible, 'assertStudentEligible').mockResolvedValue({} as any);
+    jest.spyOn(assertEligible, 'assertStudentEligible').mockResolvedValue(mockStudent as any);
   });
 
   afterEach(() => {
     jest.restoreAllMocks();
   });
 
-  const mockTeam = (status: string, currentCount: number, maxMember: number) => ({
+  const mockTeam = (status: string, currentCount: number, maxMember: number, opts: any = {}) => ({
     id: 'team-1',
     status,
     categoryId: 'cat-1',
-    category: { maxMember },
-    teamMembers: Array(currentCount).fill({ id: 'member' }),
+    groupKey: opts.groupKey ?? null,
+    quotaConfirmed: opts.quotaConfirmed ?? false,
+    category: {
+      maxMember,
+      minMember: opts.minMember ?? 2,
+      teamCompositionMode: opts.teamCompositionMode ?? 'FREE',
+      maxTeamsPerGroup: opts.maxTeamsPerGroup ?? null,
+    },
+    teamMembers: Array(currentCount).fill({ id: 'member', studentId: 'student-other' }),
   });
 
-  it('berhasil join tim yang berstatus OPEN dan kuota belum penuh', async () => {
+  it('berhasil join tim FREE yang berstatus OPEN dan kuota belum penuh', async () => {
     prisma.team.findUnique.mockResolvedValue({ id: 'team-1', code: '123456' });
     const team = mockTeam('OPEN', 1, 3);
     tx.team.findUniqueOrThrow.mockResolvedValue(team);
@@ -179,7 +188,6 @@ describe('TeamsService.join', () => {
     expect(tx.registration.create).toHaveBeenCalledWith({
       data: { studentId: 'student-2', categoryId: 'cat-1', teamId: 'team-1' },
     });
-    expect(tx.team.update).not.toHaveBeenCalled(); // Karena belum penuh (1+1 = 2 < 3)
   });
 
   it('berhasil join dan mengubah status jadi FULL jika kuota tepat terpenuhi', async () => {
@@ -189,10 +197,12 @@ describe('TeamsService.join', () => {
 
     await service.join('student-2', '123456');
 
-    expect(tx.team.update).toHaveBeenCalledWith({
-      where: { id: 'team-1' },
-      data: { status: 'FULL' },
-    });
+    // Should include both quotaConfirmed update AND status FULL update
+    const updateCalls = tx.team.update.mock.calls;
+    const statusFullCall = updateCalls.find(
+      (c: any) => c[0]?.data?.status === 'FULL',
+    );
+    expect(statusFullCall).toBeTruthy();
   });
 
   it('menolak join jika status LOCKED', async () => {
@@ -216,4 +226,33 @@ describe('TeamsService.join', () => {
 
     await expect(service.join('student-2', '123456')).rejects.toThrow(NotFoundException);
   });
+
+  it('menolak join PER_ANGKATAN jika groupKey berbeda (beda angkatan)', async () => {
+    prisma.team.findUnique.mockResolvedValue({ id: 'team-1', code: '123456' });
+    const team = mockTeam('OPEN', 1, 3, {
+      teamCompositionMode: 'PER_ANGKATAN',
+      groupKey: '29', // Tim angkatan 29
+      maxTeamsPerGroup: 2,
+    });
+    tx.team.findUniqueOrThrow.mockResolvedValue(team);
+    // mockStudent has angkatan: 30 → groupKey '30' != '29'
+
+    await expect(service.join('student-2', '123456')).rejects.toThrow(BadRequestException);
+  });
+
+  it('menolak join PER_ANGKATAN jika kuota grup sudah penuh', async () => {
+    prisma.team.findUnique.mockResolvedValue({ id: 'team-1', code: '123456' });
+    const team = mockTeam('OPEN', 1, 3, {
+      teamCompositionMode: 'PER_ANGKATAN',
+      groupKey: '30',
+      maxTeamsPerGroup: 2,
+      minMember: 2,
+    });
+    tx.team.findUniqueOrThrow.mockResolvedValue(team);
+    // Mock: quota already full (2 confirmed teams in same group)
+    tx.team.count.mockResolvedValue(2);
+
+    await expect(service.join('student-2', '123456')).rejects.toThrow(BadRequestException);
+  });
 });
+
