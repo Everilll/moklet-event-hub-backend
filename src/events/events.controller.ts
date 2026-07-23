@@ -10,6 +10,7 @@ import {
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
+import type { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import {
@@ -48,8 +49,8 @@ export class EventsController {
   @ApiCreatedResponse({ description: 'Event berhasil dibuat' })
   @ApiResponse({ status: 400, description: 'Input data tidak valid' })
   @ApiResponse({ status: 403, description: 'Akses ditolak (Hanya PANITIA)' })
-  async create(@CurrentUser('sub') accountId: string, @Body() dto: CreateEventDto) {
-    const created = await this.eventsService.create(accountId, dto);
+  async create(@CurrentUser() user: JwtPayload, @Body() dto: CreateEventDto) {
+    const created = await this.eventsService.create(user.sub, dto);
     return new MessageResponse(created, 'Event berhasil dibuat');
   }
 
@@ -86,10 +87,10 @@ export class EventsController {
   @ApiResponse({ status: 404, description: 'Event tidak ditemukan' })
   async update(
     @Param('id') id: string,
-    @CurrentUser('sub') accountId: string,
+    @CurrentUser() user: JwtPayload,
     @Body() dto: UpdateEventDto,
   ) {
-    const updated = await this.eventsService.update(id, accountId, dto);
+    const updated = await this.eventsService.update(id, user.sub, dto);
     return new MessageResponse(updated, 'Event berhasil diperbarui');
   }
 
@@ -105,10 +106,10 @@ export class EventsController {
   @ApiResponse({ status: 404, description: 'Event tidak ditemukan' })
   async updateStatus(
     @Param('id') id: string,
-    @CurrentUser('sub') accountId: string,
+    @CurrentUser() user: JwtPayload,
     @Body() dto: UpdateEventStatusDto,
   ) {
-    const updated = await this.eventsService.updateStatus(id, accountId, dto);
+    const updated = await this.eventsService.updateStatus(id, user.sub, dto);
     return new MessageResponse(updated, 'Status event berhasil diperbarui');
   }
 
@@ -138,10 +139,10 @@ export class EventsController {
   @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
   async updateBanner(
     @Param('id') id: string,
-    @CurrentUser('sub') accountId: string,
+    @CurrentUser() user: JwtPayload,
     @UploadedFile(new FilePipe({ maxSizeMb: 3 })) file: Express.Multer.File,
   ) {
-    const updated = await this.eventsService.updateBanner(id, accountId, file);
+    const updated = await this.eventsService.updateBanner(id, user.sub, file);
     return new MessageResponse(updated, 'Banner event berhasil diperbarui');
   }
 
@@ -171,11 +172,11 @@ export class EventsController {
   @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
   async updateGuidebook(
     @Param('id') id: string,
-    @CurrentUser('sub') accountId: string,
+    @CurrentUser() user: JwtPayload,
     @UploadedFile(new FilePipe({ maxSizeMb: 10, allowedMimes: ['application/pdf'] }))
     file: Express.Multer.File,
   ) {
-    const updated = await this.eventsService.updateGuidebook(id, accountId, file);
+    const updated = await this.eventsService.updateGuidebook(id, user.sub, file);
     return new MessageResponse(updated, 'Guidebook event berhasil diperbarui');
   }
 }

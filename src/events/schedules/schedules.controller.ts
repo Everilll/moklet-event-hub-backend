@@ -10,6 +10,7 @@ import {
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
+import type { JwtPayload } from '../../auth/interfaces/jwt-payload.interface';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import {
@@ -50,10 +51,10 @@ export class SchedulesController {
   @ApiResponse({ status: 404, description: 'Event tidak ditemukan' })
   async create(
     @Param('eventId') eventId: string,
-    @CurrentUser('sub') accountId: string,
+    @CurrentUser() user: JwtPayload,
     @Body() dto: CreateScheduleDto,
   ) {
-    const created = await this.schedulesService.create(eventId, accountId, dto);
+    const created = await this.schedulesService.create(eventId, user.sub, dto);
     return new MessageResponse(created, 'Jadwal berhasil ditambahkan');
   }
 
@@ -81,10 +82,10 @@ export class SchedulesController {
   @ApiResponse({ status: 404, description: 'Jadwal tidak ditemukan' })
   async update(
     @Param('id') id: string,
-    @CurrentUser('sub') accountId: string,
+    @CurrentUser() user: JwtPayload,
     @Body() dto: UpdateScheduleDto,
   ) {
-    const updated = await this.schedulesService.update(id, accountId, dto);
+    const updated = await this.schedulesService.update(id, user.sub, dto);
     return new MessageResponse(updated, 'Jadwal berhasil diperbarui');
   }
 
@@ -114,10 +115,10 @@ export class SchedulesController {
   @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
   async updateDresscodeImage(
     @Param('id') id: string,
-    @CurrentUser('sub') accountId: string,
+    @CurrentUser() user: JwtPayload,
     @UploadedFile(new FilePipe({ maxSizeMb: 3 })) file: Express.Multer.File,
   ) {
-    const updated = await this.schedulesService.updateDresscodeImage(id, accountId, file);
+    const updated = await this.schedulesService.updateDresscodeImage(id, user.sub, file);
     return new MessageResponse(updated, 'Gambar dresscode berhasil diperbarui');
   }
 
@@ -130,8 +131,8 @@ export class SchedulesController {
   @ApiOkResponse({ description: 'Jadwal berhasil dihapus' })
   @ApiResponse({ status: 403, description: 'Akses ditolak (Bukan panitia pengelola event ini)' })
   @ApiResponse({ status: 404, description: 'Jadwal tidak ditemukan' })
-  async remove(@Param('id') id: string, @CurrentUser('sub') accountId: string) {
-    await this.schedulesService.remove(id, accountId);
+  async remove(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
+    await this.schedulesService.remove(id, user.sub);
     return new MessageResponse(null, 'Jadwal berhasil dihapus');
   }
 }

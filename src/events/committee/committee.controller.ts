@@ -1,3 +1,4 @@
+import type { JwtPayload } from '../../auth/interfaces/jwt-payload.interface';
 import { Body, Controller, Delete, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags, ApiOperation, ApiParam, ApiOkResponse, ApiCreatedResponse, ApiResponse } from '@nestjs/swagger';
 import { CommitteeService } from './committee.service';
@@ -26,10 +27,10 @@ export class CommitteeController {
   @ApiResponse({ status: 409, description: 'Siswa sudah terdaftar sebagai anggota panitia di event ini' })
   async addMember(
     @Param('eventId') eventId: string,
-    @CurrentUser('sub') accountId: string,
+    @CurrentUser() user: JwtPayload,
     @Body() dto: AddCommitteeMemberDto,
   ) {
-    const created = await this.committeeService.addMember(eventId, accountId, dto.studentId);
+    const created = await this.committeeService.addMember(eventId, user.sub, dto.studentId);
     return new MessageResponse(created, 'Anggota divisi berhasil ditambahkan');
   }
 
@@ -40,8 +41,8 @@ export class CommitteeController {
   @ApiParam({ name: 'eventId', description: 'ID unik event' })
   @ApiOkResponse({ description: 'Daftar anggota panitia berhasil diambil' })
   @ApiResponse({ status: 404, description: 'Event tidak ditemukan' })
-  async list(@Param('eventId') eventId: string, @CurrentUser('sub') accountId: string) {
-    const data = await this.committeeService.list(eventId, accountId);
+  async list(@Param('eventId') eventId: string, @CurrentUser() user: JwtPayload) {
+    const data = await this.committeeService.list(eventId, user.sub);
     return new RawResponse(data);
   }
 
@@ -58,9 +59,9 @@ export class CommitteeController {
   async removeMember(
     @Param('eventId') eventId: string,
     @Param('studentId') studentId: string,
-    @CurrentUser('sub') accountId: string,
+    @CurrentUser() user: JwtPayload,
   ) {
-    await this.committeeService.removeMember(eventId, accountId, studentId);
+    await this.committeeService.removeMember(eventId, user.sub, studentId);
     return new MessageResponse(null, 'Anggota divisi berhasil dikeluarkan');
   }
 }

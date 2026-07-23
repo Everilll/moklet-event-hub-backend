@@ -256,10 +256,10 @@ export class StudentsController {
     },
   })
   async uploadOwnAvatar(
-    @CurrentUser('sub') accountId: string,
+    @CurrentUser() user: JwtPayload,
     @UploadedFile(new FilePipe({ maxSizeMb: 3 })) file: Express.Multer.File,
   ) {
-    const updated = await this.studentsService.uploadOwnAvatar(accountId, file);
+    const updated = await this.studentsService.uploadOwnAvatar(user.sub, file);
     return new MessageResponse(updated, 'Foto profil berhasil diperbarui');
   }
 

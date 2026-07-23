@@ -1,3 +1,4 @@
+import type { JwtPayload } from '../../auth/interfaces/jwt-payload.interface';
 import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags, ApiOperation, ApiParam, ApiOkResponse, ApiCreatedResponse, ApiResponse } from '@nestjs/swagger';
 import { CategoriesService } from './categories.service';
@@ -26,10 +27,10 @@ export class CategoriesController {
   @ApiResponse({ status: 404, description: 'Event tidak ditemukan' })
   async create(
     @Param('eventId') eventId: string,
-    @CurrentUser('sub') accountId: string,
+    @CurrentUser() user: JwtPayload,
     @Body() dto: CreateCategoryDto,
   ) {
-    const created = await this.categoriesService.create(eventId, accountId, dto);
+    const created = await this.categoriesService.create(eventId, user.sub, dto);
     return new MessageResponse(created, 'Cabang lomba berhasil ditambahkan');
   }
 
@@ -57,10 +58,10 @@ export class CategoriesController {
   @ApiResponse({ status: 404, description: 'Cabang lomba tidak ditemukan' })
   async update(
     @Param('id') id: string,
-    @CurrentUser('sub') accountId: string,
+    @CurrentUser() user: JwtPayload,
     @Body() dto: UpdateCategoryDto,
   ) {
-    const updated = await this.categoriesService.update(id, accountId, dto);
+    const updated = await this.categoriesService.update(id, user.sub, dto);
     return new MessageResponse(updated, 'Cabang lomba berhasil diperbarui');
   }
 
@@ -73,8 +74,8 @@ export class CategoriesController {
   @ApiOkResponse({ description: 'Cabang lomba berhasil dihapus' })
   @ApiResponse({ status: 403, description: 'Akses ditolak (Bukan panitia pengelola event ini)' })
   @ApiResponse({ status: 404, description: 'Cabang lomba tidak ditemukan' })
-  async remove(@Param('id') id: string, @CurrentUser('sub') accountId: string) {
-    await this.categoriesService.remove(id, accountId);
+  async remove(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
+    await this.categoriesService.remove(id, user.sub);
     return new MessageResponse(null, 'Cabang lomba berhasil dihapus');
   }
 }

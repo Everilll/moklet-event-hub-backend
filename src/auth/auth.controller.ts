@@ -1,3 +1,4 @@
+import type { JwtPayload } from './interfaces/jwt-payload.interface';
 import {
   Body,
   Controller,
@@ -89,10 +90,10 @@ export class AuthController {
   @ApiOkResponse({ description: 'Password berhasil diatur.' })
   @ApiResponse({ status: 400, description: 'Password sudah pernah diatur sebelumnya.' })
   async setupPassword(
-    @CurrentUser('sub') accountId: string,
+    @CurrentUser() user: JwtPayload,
     @Body() dto: SetupPasswordDto,
   ) {
-    await this.authService.setupPassword(accountId, dto.password);
+    await this.authService.setupPassword(user.sub, dto.password);
     return new MessageResponse(null, 'Password berhasil diatur');
   }
 
@@ -145,10 +146,10 @@ export class AuthController {
   @ApiOkResponse({ description: 'Akun berhasil ditautkan ke identitas siswa. Mengembalikan JWT token baru.' })
   @ApiResponse({ status: 409, description: 'Konflik! Siswa sudah terikat dengan akun lain.' })
   async bindIdentity(
-    @CurrentUser('sub') accountId: string,
+    @CurrentUser() user: JwtPayload,
     @Body() dto: BindIdentityDto,
   ) {
-    const updatedAccount = await this.authService.bindIdentity(accountId, dto.studentId);
+    const updatedAccount = await this.authService.bindIdentity(user.sub, dto.studentId);
     
     const newToken = this.authService.issueToken(updatedAccount); 
     
@@ -185,7 +186,7 @@ export class AuthController {
   @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Mengambil informasi detail akun yang sedang login' })
   @ApiOkResponse({ description: 'Mengembalikan data profil akun beserta relasi data siswanya.' })
-  async me(@CurrentUser('sub') accountId: string) {
-    return this.authService.getMe(accountId);
+  async me(@CurrentUser() user: JwtPayload) {
+    return this.authService.getMe(user.sub);
   }
 }
