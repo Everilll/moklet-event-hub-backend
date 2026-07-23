@@ -170,6 +170,7 @@ describe('TeamsService.join', () => {
       minMember: opts.minMember ?? 2,
       teamCompositionMode: opts.teamCompositionMode ?? 'FREE',
       maxTeamsPerGroup: opts.maxTeamsPerGroup ?? null,
+      maxTotalTeams: opts.maxTotalTeams ?? null,
     },
     teamMembers: Array(currentCount).fill({ id: 'member', studentId: 'student-other' }),
   });

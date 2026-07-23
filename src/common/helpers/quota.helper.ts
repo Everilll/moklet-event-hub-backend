@@ -1,12 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
 
-/**
- * Resolve groupKey untuk sebuah tim berdasarkan mode komposisi.
- *
- * - FREE         → null (tidak ada grouping)
- * - PER_CLASS    → student.classId
- * - PER_ANGKATAN → student.angkatan as string
- */
 export function resolveGroupKey(
   mode: string,
   student: { classId: string; angkatan: number | null },
@@ -57,23 +50,31 @@ export async function checkAndConfirmQuota(
   category: {
     teamCompositionMode: string;
     maxTeamsPerGroup: number | null;
+    maxTotalTeams: number | null;
     minMember: number;
   },
   currentMemberCount: number,
 ): Promise<boolean> {
-  // Belum capai minMember → belum bisa confirm
   if (currentMemberCount < category.minMember) return false;
 
-  // Ambil tim terbaru (mungkin sudah quotaConfirmed dari sebelumnya)
   const team = await tx.team.findUniqueOrThrow({
     where: { id: teamId },
-    select: { quotaConfirmed: true, groupKey: true },
+    select: { quotaConfirmed: true, groupKey: true, categoryId: true },
   });
 
-  // Sudah confirmed sebelumnya → skip (one-way flag)
   if (team.quotaConfirmed) return false;
 
-  // Mode FREE → langsung confirm tanpa cek kuota
+  if (category.maxTotalTeams != null) {
+    const globalConfirmedCount = await tx.team.count({
+      where: { categoryId: team.categoryId, quotaConfirmed: true },
+    });
+    if (globalConfirmedCount >= category.maxTotalTeams) {
+      throw new BadRequestException(
+        `Kuota total untuk cabang lomba ini sudah penuh (${globalConfirmedCount}/${category.maxTotalTeams})`,
+      );
+    }
+  }
+
   if (category.teamCompositionMode === 'FREE' || category.maxTeamsPerGroup == null) {
     await tx.team.update({
       where: { id: teamId },
@@ -82,15 +83,9 @@ export async function checkAndConfirmQuota(
     return true;
   }
 
-  // Mode PER_CLASS / PER_ANGKATAN → cek kuota di groupKey yang sama
   const confirmedCount = await tx.team.count({
     where: {
-      categoryId: (
-        await tx.team.findUniqueOrThrow({
-          where: { id: teamId },
-          select: { categoryId: true },
-        })
-      ).categoryId,
+      categoryId: team.categoryId,
       groupKey: team.groupKey,
       quotaConfirmed: true,
     },
