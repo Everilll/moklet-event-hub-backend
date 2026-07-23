@@ -41,4 +41,11 @@ export class CreateCategoryDto {
   @IsInt()
   @Min(1)
   maxTotalTeams?: number;
+
+  @ApiPropertyOptional({
+    description: 'Jika true, siswa kelas 12 tidak boleh mendaftar/bergabung di cabang lomba ini (default: true)',
+    default: true,
+  })
+  @IsOptional()
+  excludeGrade12?: boolean;
 }

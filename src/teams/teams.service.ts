@@ -46,10 +46,11 @@ export class TeamsService {
    * - Kalau slot penuh → tolak (rollback seluruh transaction)
    */
   async create(studentId: string, dto: CreateTeamDto) {
-    const student = await assertStudentEligible(this.prisma, studentId);
-
     const category = await this.prisma.category.findUnique({ where: { id: dto.categoryId } });
     if (!category) throw new NotFoundException('Cabang lomba tidak ditemukan');
+    
+    const student = await assertStudentEligible(this.prisma, studentId, category.excludeGrade12);
+
     if (category.maxMember <= 1) {
       throw new BadRequestException(
         'Cabang lomba ini untuk individu (maxMember=1) -- gunakan POST /registrations/individual',
@@ -105,10 +106,14 @@ export class TeamsService {
    * - Cek kuota saat anggota memenuhi minMember
    */
   async join(studentId: string, code: string) {
-    const student = await assertStudentEligible(this.prisma, studentId);
-
-    const teamLookup = await this.prisma.team.findUnique({ where: { code } });
+    const teamLookup = await this.prisma.team.findUnique({ 
+      where: { code },
+      include: { category: true }
+    });
     if (!teamLookup) throw new NotFoundException('Kode tim tidak ditemukan');
+    
+    const student = await assertStudentEligible(this.prisma, studentId, teamLookup.category.excludeGrade12);
+
     const teamId = teamLookup.id;
 
     return this.prisma.$transaction(async (tx) => {

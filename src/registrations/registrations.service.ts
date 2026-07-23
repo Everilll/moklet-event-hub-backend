@@ -21,11 +21,12 @@ export class RegistrationsService {
    * Anti-daftar-ganda tetap dijaga lewat @@unique([studentId, categoryId]).
    */
   async registerIndividual(studentId: string, dto: IndividualRegistrationDto) {
-    const student = await assertStudentEligible(this.prisma, studentId);
-
     const category = await this.prisma.category.findUnique({ where: { id: dto.categoryId } });
     if (!category) throw new NotFoundException('Cabang lomba tidak ditemukan');
-    if (category.maxMember !== 1) {
+
+    const student = await assertStudentEligible(this.prisma, studentId, category.excludeGrade12);
+
+    if (category.maxMember > 1) {
       throw new BadRequestException(
         'Cabang lomba ini untuk tim (maxMember>1) -- gunakan POST /teams',
       );
@@ -34,12 +35,10 @@ export class RegistrationsService {
     const groupKey = resolveGroupKey(category.teamCompositionMode, student);
 
     return this.prisma.$transaction(async (tx) => {
-      // Buat "tim virtual" untuk individu — konsisten dengan model kuota.
-      // Tim ini langsung LOCKED karena individual gak bisa ditambah anggota.
       const code = String(randomInt(100000, 1000000));
       const team = await tx.team.create({
         data: {
-          name: student.name, // Nama tim = nama siswa untuk individu
+          name: student.name,
           code,
           status: 'LOCKED',
           categoryId: dto.categoryId,
@@ -56,7 +55,6 @@ export class RegistrationsService {
         data: { studentId, categoryId: dto.categoryId, teamId: team.id },
       });
 
-      // Individu = minMember selalu 1, jadi langsung cek kuota & confirm
       await checkAndConfirmQuota(tx, team.id, category, 1);
 
       return tx.registration.findFirstOrThrow({

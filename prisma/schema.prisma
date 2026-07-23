@@ -139,6 +139,7 @@ model Category {
   teamCompositionMode TeamCompositionMode  @default(FREE)
   maxTeamsPerGroup    Int?
   maxTotalTeams       Int?
+  excludeGrade12      Boolean              @default(true)
   eventId             String               @db.Uuid
   event               Event                @relation(fields: [eventId], references: [id], onDelete: Restrict)
   teams               Team[]
