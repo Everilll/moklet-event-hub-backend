@@ -101,6 +101,7 @@ model Event {
   eventSchedules        EventSchedule[]
   eventCommitteeMembers EventCommitteeMember[]
   announcements         Announcement[]
+  exportLogs            ExportLog[]
 
   @@index([status])
 }
@@ -203,10 +204,12 @@ model Announcement {
 }
 
 model ExportLog {
-  id           String   @id @default(uuid()) @db.Uuid
-  categoryId   String   @db.Uuid
-  category     Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  exportedById String   @db.Uuid
-  exportedBy   Account  @relation(fields: [exportedById], references: [id], onDelete: Restrict)
-  createdAt    DateTime @default(now())
+  id           String    @id @default(uuid()) @db.Uuid
+  categoryId   String?   @db.Uuid
+  category     Category? @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  eventId      String?   @db.Uuid
+  event        Event?    @relation(fields: [eventId], references: [id], onDelete: Restrict)
+  exportedById String    @db.Uuid
+  exportedBy   Account   @relation(fields: [exportedById], references: [id], onDelete: Restrict)
+  createdAt    DateTime  @default(now())
 }
