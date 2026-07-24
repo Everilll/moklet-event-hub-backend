@@ -32,9 +32,9 @@ enum TeamStatus {
 }
 
 enum TeamCompositionMode {
-  FREE          // Bebas, tanpa batasan kuota per kelas/angkatan
-  PER_CLASS     // Kuota per Class spesifik (e.g., "X RPL 1" max N tim)
-  PER_ANGKATAN  // Kuota per angkatan (e.g., angkatan 30 max N tim)
+  FREE
+  PER_CLASS
+  PER_ANGKATAN
 }
 
 model SystemSetting {
@@ -59,7 +59,7 @@ model Student {
   nis                   String?                @unique
   classId               String                 @db.Uuid
   class                 Class                  @relation(fields: [classId], references: [id], onDelete: Restrict)
-  angkatan              Int?                   // Nullable dulu, backfill lalu ALTER ke NOT NULL
+  angkatan              Int?
   photoUrl              String?
   photoPublicId         String?
   deletedAt             DateTime?
@@ -137,7 +137,9 @@ model Category {
   minMember           Int                  @default(1)
   maxMember           Int                  @default(1)
   teamCompositionMode TeamCompositionMode  @default(FREE)
-  maxTeamsPerGroup    Int?                 // Wajib diisi kalau mode != FREE, null kalau FREE
+  maxTeamsPerGroup    Int?
+  maxTotalTeams       Int?
+  excludeGrade12      Boolean              @default(true)
   eventId             String               @db.Uuid
   event               Event                @relation(fields: [eventId], references: [id], onDelete: Restrict)
   teams               Team[]
@@ -150,15 +152,15 @@ model Team {
   name           String
   code           String         @unique
   status         TeamStatus     @default(OPEN)
-  groupKey       String?        // classId (PER_CLASS) atau angkatan-as-string (PER_ANGKATAN), null (FREE)
-  quotaConfirmed Boolean        @default(false) // true sekali tim capai minMember & lolos cek kuota (one-way flag)
+  groupKey       String?
+  quotaConfirmed Boolean        @default(false)
   categoryId     String         @db.Uuid
   category       Category       @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   teamMembers    TeamMember[]
   registrations  Registration[]
 
   @@index([categoryId])
-  @@index([categoryId, groupKey]) // Optimasi query count kuota
+  @@index([categoryId, groupKey])
 }
 
 model TeamMember {

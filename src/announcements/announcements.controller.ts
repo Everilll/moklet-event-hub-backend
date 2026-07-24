@@ -37,7 +37,7 @@ export class AnnouncementsController {
 
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('PANITIA', 'ADMIN_KESISWAAN')
+  @Roles('SISWA', 'PANITIA', 'ADMIN_KESISWAAN')
   @ApiBearerAuth('access-token')
   @ApiOperation({
     summary: 'Buat pengumuman baru (global atau khusus event)',
@@ -79,7 +79,7 @@ export class AnnouncementsController {
 
   @Patch(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('PANITIA', 'ADMIN_KESISWAAN')
+  @Roles('SISWA', 'PANITIA', 'ADMIN_KESISWAAN')
   @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Edit pengumuman' })
   @ApiParam({ name: 'id', description: 'ID unik pengumuman' })
@@ -97,7 +97,7 @@ export class AnnouncementsController {
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('PANITIA', 'ADMIN_KESISWAAN')
+  @Roles('SISWA', 'PANITIA', 'ADMIN_KESISWAAN')
   @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Hapus pengumuman' })
   @ApiParam({ name: 'id', description: 'ID unik pengumuman' })

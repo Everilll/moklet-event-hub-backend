@@ -17,9 +17,29 @@ export class CategoriesService {
     }
   }
 
+  private validateCompositionMode(
+    mode: string,
+    maxTeamsPerGroup?: number | null,
+    maxTotalTeams?: number | null,
+  ) {
+    if (mode === 'FREE') {
+      if (maxTeamsPerGroup != null) {
+        throw new BadRequestException('Mode FREE tidak boleh mengisi maxTeamsPerGroup');
+      }
+    } else {
+      if (maxTeamsPerGroup == null) {
+        throw new BadRequestException(`maxTeamsPerGroup wajib diisi untuk mode ${mode}`);
+      }
+      if (maxTotalTeams != null) {
+        throw new BadRequestException(`Mode ${mode} tidak boleh mengisi maxTotalTeams (harus pakai FREE)`);
+      }
+    }
+  }
+
   async create(eventId: string, accountId: string, dto: CreateCategoryDto) {
     await this.ownership.assertCanManage(eventId, accountId);
     this.assertMinMax(dto.minMember, dto.maxMember);
+    this.validateCompositionMode(dto.teamCompositionMode, dto.maxTeamsPerGroup, dto.maxTotalTeams);
     return this.prisma.category.create({ data: { ...dto, eventId } });
   }
 
@@ -41,7 +61,19 @@ export class CategoriesService {
     const maxMember = dto.maxMember ?? category.maxMember;
     this.assertMinMax(minMember, maxMember);
 
-    return this.prisma.category.update({ where: { id }, data: dto });
+    const mode = dto.teamCompositionMode ?? category.teamCompositionMode;
+    const maxPerGroup = dto.maxTeamsPerGroup !== undefined ? dto.maxTeamsPerGroup : category.maxTeamsPerGroup;
+    const maxTotal = dto.maxTotalTeams !== undefined ? dto.maxTotalTeams : category.maxTotalTeams;
+    
+    this.validateCompositionMode(mode, maxPerGroup, maxTotal);
+
+    const updateData = {
+      ...dto,
+      maxTeamsPerGroup: maxPerGroup,
+      maxTotalTeams: maxTotal,
+    };
+
+    return this.prisma.category.update({ where: { id }, data: updateData });
   }
 
   async remove(id: string, accountId: string) {

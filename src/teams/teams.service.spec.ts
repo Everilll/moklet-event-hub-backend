@@ -170,12 +170,13 @@ describe('TeamsService.join', () => {
       minMember: opts.minMember ?? 2,
       teamCompositionMode: opts.teamCompositionMode ?? 'FREE',
       maxTeamsPerGroup: opts.maxTeamsPerGroup ?? null,
+      maxTotalTeams: opts.maxTotalTeams ?? null,
     },
     teamMembers: Array(currentCount).fill({ id: 'member', studentId: 'student-other' }),
   });
 
   it('berhasil join tim FREE yang berstatus OPEN dan kuota belum penuh', async () => {
-    prisma.team.findUnique.mockResolvedValue({ id: 'team-1', code: '123456' });
+    prisma.team.findUnique.mockResolvedValue({ id: 'team-1', code: '123456', category: { excludeGrade12: false } });
     const team = mockTeam('OPEN', 1, 3);
     tx.team.findUniqueOrThrow.mockResolvedValue(team);
 
@@ -191,7 +192,7 @@ describe('TeamsService.join', () => {
   });
 
   it('berhasil join dan mengubah status jadi FULL jika kuota tepat terpenuhi', async () => {
-    prisma.team.findUnique.mockResolvedValue({ id: 'team-1', code: '123456' });
+    prisma.team.findUnique.mockResolvedValue({ id: 'team-1', code: '123456', category: { excludeGrade12: false } });
     const team = mockTeam('OPEN', 2, 3);
     tx.team.findUniqueOrThrow.mockResolvedValue(team);
 
@@ -206,7 +207,7 @@ describe('TeamsService.join', () => {
   });
 
   it('menolak join jika status LOCKED', async () => {
-    prisma.team.findUnique.mockResolvedValue({ id: 'team-1', code: '123456' });
+    prisma.team.findUnique.mockResolvedValue({ id: 'team-1', code: '123456', category: { excludeGrade12: false } });
     const team = mockTeam('LOCKED', 2, 3);
     tx.team.findUniqueOrThrow.mockResolvedValue(team);
 
@@ -214,7 +215,7 @@ describe('TeamsService.join', () => {
   });
 
   it('menolak join jika status FULL', async () => {
-    prisma.team.findUnique.mockResolvedValue({ id: 'team-1', code: '123456' });
+    prisma.team.findUnique.mockResolvedValue({ id: 'team-1', code: '123456', category: { excludeGrade12: false } });
     const team = mockTeam('FULL', 3, 3);
     tx.team.findUniqueOrThrow.mockResolvedValue(team);
 
@@ -228,7 +229,7 @@ describe('TeamsService.join', () => {
   });
 
   it('menolak join PER_ANGKATAN jika groupKey berbeda (beda angkatan)', async () => {
-    prisma.team.findUnique.mockResolvedValue({ id: 'team-1', code: '123456' });
+    prisma.team.findUnique.mockResolvedValue({ id: 'team-1', code: '123456', category: { excludeGrade12: false } });
     const team = mockTeam('OPEN', 1, 3, {
       teamCompositionMode: 'PER_ANGKATAN',
       groupKey: '29', // Tim angkatan 29
@@ -241,7 +242,7 @@ describe('TeamsService.join', () => {
   });
 
   it('menolak join PER_ANGKATAN jika kuota grup sudah penuh', async () => {
-    prisma.team.findUnique.mockResolvedValue({ id: 'team-1', code: '123456' });
+    prisma.team.findUnique.mockResolvedValue({ id: 'team-1', code: '123456', category: { excludeGrade12: false } });
     const team = mockTeam('OPEN', 1, 3, {
       teamCompositionMode: 'PER_ANGKATAN',
       groupKey: '30',
