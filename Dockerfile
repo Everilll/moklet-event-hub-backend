@@ -37,8 +37,12 @@ COPY package*.json ./
 # Install HANYA production dependencies
 RUN npm ci --omit=dev
 
-# Copy file prisma (Hanya butuh folder prisma untuk keperluan migrate)
+# Install prisma CLI secara global agar bisa dipakai untuk pre-deploy migrate
+RUN npm install -g prisma
+
+# Copy file konfigurasi prisma terbaru
 COPY prisma ./prisma
+COPY prisma.config.ts ./
 
 # Copy hasil build dari stage builder
 # Di dalamnya sudah lengkap: dist/src (kode backend) dan dist/generated (kode prisma)
@@ -46,5 +50,5 @@ COPY --from=builder /app/dist ./dist
 
 EXPOSE 3000
 
-# Jalankan migrasi lalu start server menggunakan path yang benar (dist/src/main.js)
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/src/main.js"]
+# Jalankan aplikasi (Migrasi dipindah ke fitur Pre-Deploy Command di Dashboard Railway)
+CMD ["node", "dist/src/main.js"]
