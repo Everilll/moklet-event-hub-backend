@@ -50,5 +50,5 @@ COPY --from=builder /app/dist ./dist
 
 EXPOSE 3000
 
-# Jalankan aplikasi (Migrasi dipindah ke fitur Pre-Deploy Command di Dashboard Railway)
-CMD ["node", "dist/src/main.js"]
+# Jalankan migrasi, seed, lalu start aplikasi (All-in-one command untuk menghindari bug Railway Pre-deploy)
+CMD ["sh", "-c", "npx prisma migrate deploy && npx prisma db seed && node dist/src/main.js"]
