@@ -1,87 +1,138 @@
-# Moklet Event Hub — Backend Requirements
+# Moklet Event Hub — Product Requirements Document (PRD) Final
 
-Dokumen ini untuk tim backend & AI agent planner yang akan mendesain schema database dan API. Fokusnya di domain entity, relasi, dan business rules — bukan UI/UX.
+> **Versi:** 2.0 (Final)  
+> **Terakhir diperbarui:** 29 Juli 2026  
+> **Status:** ✅ Backend 100% Selesai & Live di Production (Railway)
 
-## Tech Stack
+Dokumen ini merangkum keseluruhan spesifikasi produk **Moklet Event Hub** yang telah selesai diimplementasikan. Diperuntukkan untuk tim Backend sebagai *single source of truth*.
+
+---
+
+## 1. Konteks Produk
+
+Platform manajemen event kesiswaan internal **SMK Telkom Malang (Moklet)**. Memfasilitasi seluruh siklus hidup event sekolah: dari pembuatan event oleh OSIS, pendaftaran lomba oleh siswa (individu maupun tim), hingga rekapitulasi data peserta oleh panitia.
+
+**Skala data:** ±2.000 siswa aktif, puluhan event per tahun ajaran. Tidak membutuhkan *sharding* atau *caching* khusus.
+
+---
+
+## 2. Tech Stack
 
 | Layer | Stack |
 |---|---|
-| Runtime/Framework | NestJS |
-| Database | PostgreSQL |
-| ORM | Prisma 7.8.0 |
+| Runtime / Framework | NestJS 11 (TypeScript) |
+| Database | PostgreSQL (Prisma Accelerate / Prisma Postgres) |
+| ORM | Prisma 7.8.0 (Driver Adapter: `@prisma/adapter-pg`) |
+| Auth | JWT + Google OAuth 2.0 + OTP (Email) |
+| File Storage | Cloudinary (Image, PDF) |
+| Export | ExcelJS (`.xlsx`) |
+| Deployment | Docker → Railway |
+| Email | Resend (via SMTP / Nodemailer) |
 
-## Konteks Singkat
+---
 
-Platform manajemen event kesiswaan 1 sekolah (SMK Telkom Malang). Skala data: ratusan–~2000 siswa, jumlah event & tim per event kecil. Tidak butuh sharding/caching khusus — desain schema relasional standar sudah cukup.
+## 3. Sistem Role & Hak Akses (RBAC)
 
-## Domain Entity & Business Rules
+### 3.1. Role Enum: `SISWA`, `PANITIA`, `ADMIN_KESISWAAN`
 
-> Field yang disebut di bawah adalah kebutuhan minimal (fungsional), bukan struktur tabel final — silakan didesain lebih lanjut (naming, tipe data, index) sesuai konvensi Prisma.
+| Kasta | Role di DB | Siapa | Cara Mendapat Akun |
+|---|---|---|---|
+| **Admin Kesiswaan** | `ADMIN_KESISWAAN` | Guru / Staf TU / Pembina OSIS | Dibuat via *Database Seed* |
+| **Panitia Inti (OSIS)** | `PANITIA` | Ketua OSIS / MPK | Dibuat oleh Admin (`POST /auth/panitia`) |
+| **Panitia Event** | `SISWA` + tabel `EventCommitteeMember` | Siswa biasa yang direkrut untuk 1 event | Ditambahkan oleh Panitia Inti |
+| **Siswa Biasa** | `SISWA` | Peserta lomba | Self-register (Google OAuth / Email+Password) |
 
-### 1. `Student` (Data Master Siswa)
-- Diinput/diedit/dihapus oleh Admin Kesiswaan (bukan cuma input sekali di awal — perlu CRUD penuh)
-- Field minimal: nama, kelas, (opsional: NIS/NISN kalau ada)
-- **Rule:** satu baris `Student` hanya boleh terpasang ke tepat satu `Account` — enforce dengan unique constraint (relasi 1:1 opsional dari sisi Student, wajib dari sisi Account setelah verifikasi)
-- Kelas sebaiknya jadi entity terpisah (`Class`) kalau butuh dropdown bertingkat Kelas → Nama, biar gampang query "siswa di kelas X"
+### 3.2. Konsep Identity Binding
+Akun login (`Account`) dan data sekolah (`Student`) adalah dua entitas terpisah.
+Setelah siswa berhasil membuat akun dan terverifikasi, dia **wajib** menautkan akunnya ke data siswa resmi dari sekolah (`POST /auth/bind-identity`).
+Constraint `Account.studentId @unique` menjamin relasi 1:1 yang ketat.
 
-### 2. `Account` (User Login)
-- Dibuat dari OAuth Gmail institusi
-- Field: email institusi, role (`SISWA` / `PANITIA` / `ADMIN_KESISWAAN`), status verifikasi OTP
-- **Rule:** akun `SISWA` wajib terhubung ke tepat satu `Student` (identity binding) sebelum bisa akses fitur registrasi
-- **Rule:** email harus dari domain institusi (validasi di service layer, bukan DB, tapi worth dicatat)
+---
 
-### 3. `Event`
-- Field: nama, deskripsi, status (`ONGOING` / `CLOSED`), tanggal event, dibuat oleh `PANITIA`
-- Relasi: satu `Event` punya banyak `Category` (cabang lomba)
-- **Rule:** `Event` dengan status `CLOSED` dikecualikan dari query listing utama (butuh index di kolom status)
+## 4. Domain Entity & Business Rules (Final)
 
-### 4. `Category` (Cabang Lomba dalam satu Event)
-- Field: nama cabang lomba, `min_member`, `max_member`, guidebook file (URL/path PDF)
-- **Rule:** `max_member = 1` → alur individu; `max_member > 1` → alur tim
-- Relasi: satu `Category` punya banyak `Team` dan/atau `Registration` (individu)
+### 4.1. `SystemSetting` (Singleton)
+- Menyimpan `currentTopAngkatan` dan `currentAcademicYear`.
+- Diperbarui sekali per tahun ajaran oleh Admin Kesiswaan.
+- Digunakan untuk menghitung jenjang kelas siswa (X/XI/XII) secara dinamis berdasarkan formula: `jenjang = angkatan - currentTopAngkatan + 12`.
 
-### 5. `Team`
-- Field: kode tim (unique, 6 digit), `leaderId` (FK ke Student), status (`OPEN` / `LOCKED` / `FULL`), `categoryId`
-- **Rule:** `current_count` idealnya dihitung dari relasi `TeamMember` (count), bukan disimpan redundant, kecuali butuh performa lebih — kalau disimpan redundant, wajib di-update dalam transaksi yang sama dengan insert/delete member
-- **Rule:** status `FULL` otomatis ter-set ketika jumlah member == `max_member` dari `Category` terkait — kode tim jadi tidak valid untuk join
-- **Rule:** status `LOCKED` di-set manual oleh leader, hanya boleh terjadi kalau jumlah member >= `min_member`
-- **Rule:** join tim (insert `TeamMember`) wajib dibungkus transaksi dengan row-level lock (`SELECT ... FOR UPDATE` atau setara di Prisma) untuk cegah race condition saat slot terakhir direbutkan bersamaan
+### 4.2. `Class` (Master Kelas)
+- Fields: `grade`, `name`. Constraint: `@@unique([grade, name])`.
+- Mendukung *Bulk Create* (`POST /classes/bulk`) untuk *setup* awal tahun ajaran.
 
-### 6. `TeamMember`
-- Relasi many-to-many antara `Team` dan `Student`, dengan flag `isLeader`
-- **Rule:** satu `Student` hanya boleh jadi member di satu `Team` per `Category` yang sama (unique constraint kombinasi `studentId` + `categoryId` lewat relasi, atau langsung di level `Registration` — lihat poin 7)
-- **Rule:** member (bukan leader) boleh keluar (`DELETE`) selama `Team.status != LOCKED` dan `!= FULL`
-- **Rule:** kalau leader keluar, kepemimpinan pindah ke member dengan `joinedAt` paling awal
+### 4.3. `Student` (Master Siswa)
+- Fields: `name`, `nis?`, `classId`, `angkatan?`, `photoUrl?`, `deletedAt?` (soft-delete).
+- Mendukung import massal via Excel, sinkronisasi roster (`sync/preview` & `sync/execute`), dan export template promosi kelas.
 
-### 7. `Registration`
-- Merepresentasikan pendaftaran siswa ke suatu `Category` — baik individu maupun sebagai anggota tim
-- Field: `studentId`, `categoryId`, `teamId` (nullable, null kalau individu), timestamp
-- **Rule (anti-daftar ganda):** unique constraint pada kombinasi `studentId` + `categoryId` — inilah yang jadi sumber kebenaran untuk cek "sudah terdaftar di cabang ini apa belum", dipakai baik dari alur individu maupun tim
-- Ini entity kunci yang dipakai Excel Exporter untuk generate rekap
+### 4.4. `Account` (User Login)
+- Fields: `email @unique`, `passwordHash?`, `role`, `isVerified`, `studentId? @unique`, `otpHash?`, `otpExpiresAt?`.
+- Mendukung 3 jalur autentikasi: Google OAuth, Email+Password (tradisional), dan setup password setelah Google login.
 
-### 8. `Announcement`
-- Field: judul, isi, dibuat oleh `PANITIA`, timestamp
-- **Rule:** query listing utama cuma ambil 3 terbaru; sisanya masuk halaman arsip (bisa cukup dengan `ORDER BY createdAt DESC` + pagination, gak perlu status terpisah kecuali mau soft-delete/unpublish)
+### 4.5. `Event`
+- Fields: `name`, `description?`, `bannerUrl?`, `guidebookUrl?`, `status` (`ONGOING`/`CLOSED`), `eventDate`, `createdById`.
+- Relasi: memiliki banyak `Category`, `EventSchedule`, `EventCommitteeMember`, `Announcement`.
+- `@@index([status])` untuk *fast filtering* event aktif.
 
-### 9. `ExportLog` (opsional, kalau mau audit trail)
-- Catatan kapan & oleh siapa Excel rekap di-generate untuk suatu `Category`/`Event`
+### 4.6. `EventCommitteeMember` (Panitia Event)
+- Relasi *many-to-many* antara `Event` dan `Student`, ditambah `addedById` (siapa yang merekrut).
+- Constraint: `@@unique([eventId, studentId])`.
+- Memberikan hak akses manajerial (edit event, diskualifikasi tim, export data, buat pengumuman) kepada siswa biasa untuk 1 event spesifik.
 
-## Cross-Cutting Business Rules (penting buat schema & service layer)
+### 4.7. `EventSchedule` (Dresscode per Hari)
+- Fields: `eventId`, `date`, `dayLabel`, `dresscodeText`, `dresscodeImageUrl?`.
+- Constraint: `@@unique([eventId, date])`.
 
-- **Identity binding:** `Student` ↔ `Account` harus 1:1 begitu terverifikasi — cegah race condition juga di sini kalau dua akun coba klaim `Student` yang sama bersamaan
-- **Concurrency guard:** operasi yang mengubah jumlah anggota tim (`join`, `leave`) wajib transaksional
-- **Cascade rules:** tentukan eksplisit — kalau `Student` dihapus dari data master (misal pindah sekolah), bagaimana nasib `Registration`/`TeamMember` terkait? (soft-delete lebih aman daripada hard delete demi histori rekap)
-- **Enum yang dipakai:** `Role` (SISWA/PANITIA/ADMIN_KESISWAAN), `EventStatus` (ONGOING/CLOSED), `TeamStatus` (OPEN/LOCKED/FULL)
+### 4.8. `Category` (Cabang Lomba)
+- Fields: `name`, `minMember`, `maxMember`, `teamCompositionMode` (`FREE`/`PER_CLASS`/`PER_ANGKATAN`), `maxTeamsPerGroup?`, `maxTotalTeams?`, `excludeGrade12` (default `true`).
+- `maxMember = 1` → alur pendaftaran individu; `maxMember > 1` → alur pendaftaran tim.
 
-## Non-Functional Requirements (Backend)
+### 4.9. `Team`
+- Fields: `name`, `code @unique`, `status` (`OPEN`/`LOCKED`/`FULL`/`DISQUALIFIED`), `groupKey?`, `quotaConfirmed`, `categoryId`.
+- **Transisi status:** `OPEN → FULL` (otomatis saat member penuh), `FULL → OPEN` (otomatis saat ada yang keluar), `OPEN → LOCKED` (manual oleh leader, syarat: count ≥ minMember), `* → DISQUALIFIED` (manual oleh panitia, final state).
 
-- Rate limiting di endpoint OTP (cegah spam request kode verifikasi)
-- Semua operasi yang mengubah state kuota (join/leave team) harus atomic (DB transaction)
-- Export ke Excel harus tetap responsif meski diakses banyak panitia mendekati hari-H
-- Skala data kecil (1 sekolah) — prioritaskan correctness & constraint di level DB (unique, foreign key, check constraint) daripada optimasi performa prematur
+### 4.10. `TeamMember`
+- Fields: `teamId`, `studentId`, `isLeader`, `joinedAt`.
+- Constraint: `@@unique([teamId, studentId])`.
+- Operasi join/leave dibungkus `$transaction` dengan *row-level lock* untuk mencegah *race condition*.
 
-## Out of Scope (Backend)
+### 4.11. `Registration` (Anti-Daftar-Ganda)
+- Fields: `studentId`, `categoryId`, `teamId?` (null = individu).
+- Constraint: `@@unique([studentId, categoryId])` — *single source of truth* untuk validasi "sudah terdaftar di lomba ini".
+
+### 4.12. `Announcement`
+- Fields: `title`, `content`, `eventId?` (null = pengumuman global), `createdById`.
+- Pengumuman global hanya boleh dibuat oleh `PANITIA` atau `ADMIN_KESISWAAN`.
+- Pengumuman spesifik event boleh dibuat oleh siapapun yang memiliki hak kelola event tersebut (termasuk `EventCommitteeMember`).
+
+### 4.13. `ExportLog` (Audit Trail)
+- Fields: `categoryId?`, `eventId?`, `exportedById`.
+- Mencatat setiap aktivitas *download* Excel oleh panitia.
+
+---
+
+## 5. Cross-Cutting Business Rules
+
+- **Concurrency Guard:** Semua operasi yang mengubah kuota tim (join, leave) wajib transaksional dengan *row-level lock*.
+- **Cascade Policy:** `Student` menggunakan *soft-delete* (`deletedAt`). `EventSchedule` menggunakan `onDelete: Cascade`. Sisanya menggunakan `Restrict` atau `SetNull`.
+- **Team Composition Validation:** Saat join tim, sistem memvalidasi kesesuaian kelas/angkatan berdasarkan `teamCompositionMode`.
+- **Grade 12 Exclusion:** `excludeGrade12` per kategori lomba — bisa dinyalakan/dimatikan per cabang lomba.
+- **Rate Limiting:** `@nestjs/throttler` di seluruh API + throttle ketat di endpoint login dan OTP.
+- **File Upload:** Semua file (banner, guidebook, avatar, dresscode) di-*upload* ke Cloudinary via shared `UploadService`.
+
+---
+
+## 6. Non-Functional Requirements
+
+- Semua operasi kuota tim harus *atomic* (DB transaction).
+- Export Excel harus responsif meskipun diakses banyak panitia mendekati hari-H.
+- Prioritaskan *correctness* & constraint di level DB (unique, FK, check) daripada optimasi performa prematur.
+- Server di-*bind* ke `0.0.0.0` untuk kompatibilitas Docker/Railway.
+
+---
+
+## 7. Out of Scope
 
 - Live scoring / penjurian real-time
-- Push notification service (versi awal)
+- Push notification service
 - Integrasi akun guru/wali kelas
+- Payment gateway
