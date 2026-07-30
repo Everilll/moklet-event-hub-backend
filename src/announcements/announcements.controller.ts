@@ -40,7 +40,7 @@ export class AnnouncementsController {
   @Roles('SISWA', 'PANITIA', 'ADMIN_KESISWAAN')
   @ApiBearerAuth('access-token')
   @ApiOperation({
-    summary: 'Buat pengumuman baru (global atau khusus event)',
+    summary: '[SISWA/PANITIA/ADMIN_KESISWAAN] Buat pengumuman baru (global atau khusus event)',
     description:
       'Pengumuman global: PANITIA/ADMIN_KESISWAAN. ' +
       'Pengumuman event: ketua event atau committee member.',
@@ -81,7 +81,7 @@ export class AnnouncementsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('SISWA', 'PANITIA', 'ADMIN_KESISWAAN')
   @ApiBearerAuth('access-token')
-  @ApiOperation({ summary: 'Edit pengumuman' })
+  @ApiOperation({ summary: '[SISWA/PANITIA/ADMIN_KESISWAAN] Edit pengumuman' })
   @ApiParam({ name: 'id', description: 'ID unik pengumuman' })
   @ApiOkResponse({ description: 'Pengumuman berhasil diperbarui' })
   @ApiResponse({ status: 403, description: 'Akses ditolak' })
@@ -99,7 +99,7 @@ export class AnnouncementsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('SISWA', 'PANITIA', 'ADMIN_KESISWAAN')
   @ApiBearerAuth('access-token')
-  @ApiOperation({ summary: 'Hapus pengumuman' })
+  @ApiOperation({ summary: '[SISWA/PANITIA/ADMIN_KESISWAAN] Hapus pengumuman' })
   @ApiParam({ name: 'id', description: 'ID unik pengumuman' })
   @ApiOkResponse({ description: 'Pengumuman berhasil dihapus' })
   @ApiResponse({ status: 403, description: 'Akses ditolak' })

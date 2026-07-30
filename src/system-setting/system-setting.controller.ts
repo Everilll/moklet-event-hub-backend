@@ -16,7 +16,7 @@ export class SystemSettingController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN_KESISWAAN')
   @ApiBearerAuth('access-token')
-  @ApiOperation({ summary: 'Mendapatkan konfigurasi aktif sistem saat ini (Tahun Ajaran & Angkatan Teratas)' })
+  @ApiOperation({ summary: '[ADMIN_KESISWAAN] Mendapatkan konfigurasi aktif sistem saat ini (Tahun Ajaran & Angkatan Teratas)' })
   @ApiOkResponse({ description: 'Data SystemSetting berhasil diambil' })
   async get() {
     return this.systemSettingService.get();
@@ -26,7 +26,7 @@ export class SystemSettingController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN_KESISWAAN')
   @ApiBearerAuth('access-token')
-  @ApiOperation({ summary: 'Perbarui konfigurasi aktif sistem secara manual' })
+  @ApiOperation({ summary: '[ADMIN_KESISWAAN] Perbarui konfigurasi aktif sistem secara manual' })
   @ApiOkResponse({ description: 'SystemSetting berhasil diperbarui' })
   @ApiResponse({ status: 400, description: 'Input data tidak valid' })
   async update(@Body() dto: UpdateSystemSettingDto) {

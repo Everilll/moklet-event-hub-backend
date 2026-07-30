@@ -52,7 +52,7 @@ export class StudentsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN_KESISWAAN')
   @ApiBearerAuth('access-token')
-  @ApiOperation({ summary: 'Tambah siswa baru secara manual' })
+  @ApiOperation({ summary: '[ADMIN_KESISWAAN] Tambah siswa baru secara manual' })
   @ApiResponse({ status: 201, description: 'Siswa berhasil ditambahkan' })
   async create(@Body() dto: CreateStudentDto) {
     const created = await this.studentsService.create(dto);
@@ -87,7 +87,7 @@ export class StudentsController {
   @ApiBearerAuth('access-token')
   @Header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
   @Header('Content-Disposition', 'attachment; filename="promosi-kelas.xlsx"')
-  @ApiOperation({ summary: 'Export template Excel untuk promosi kelas massal' })
+  @ApiOperation({ summary: '[ADMIN_KESISWAAN] Export template Excel untuk promosi kelas massal' })
   @ApiOkResponse({ description: 'File Excel (.xlsx) berhasil di-generate', type: StreamableFile })
   async exportForPromotion(): Promise<StreamableFile> {
     const buffer = await this.studentsExcelService.exportForPromotion();
@@ -100,7 +100,7 @@ export class StudentsController {
   @ApiBearerAuth('access-token')
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
-  @ApiOperation({ summary: 'Import data siswa baru via Excel (Create Only)' })
+  @ApiOperation({ summary: '[ADMIN_KESISWAAN] Import data siswa baru via Excel (Create Only)' })
   @ApiBody({
     schema: {
       type: 'object',
@@ -134,7 +134,7 @@ export class StudentsController {
   @ApiBearerAuth('access-token')
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
-  @ApiOperation({ summary: 'Import data promosi/kenaikan kelas massal via Excel' })
+  @ApiOperation({ summary: '[ADMIN_KESISWAAN] Import data promosi/kenaikan kelas massal via Excel' })
   @ApiBody({
     schema: {
       type: 'object',
@@ -175,7 +175,7 @@ export class StudentsController {
   @ApiBearerAuth('access-token')
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
-  @ApiOperation({ summary: 'Preview perbandingan file roster lengkap terhadap database sebelum eksekusi sync' })
+  @ApiOperation({ summary: '[ADMIN_KESISWAAN] Preview perbandingan file roster lengkap terhadap database sebelum eksekusi sync' })
   @ApiBody({
     schema: {
       type: 'object',
@@ -213,7 +213,7 @@ export class StudentsController {
   @ApiBearerAuth('access-token')
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
-  @ApiOperation({ summary: 'Eksekusi sinkronisasi roster sekolah (Create, Update, Graduate massal)' })
+  @ApiOperation({ summary: '[ADMIN_KESISWAAN] Eksekusi sinkronisasi roster sekolah (Create, Update, Graduate massal)' })
   @ApiBody({
     schema: {
       type: 'object',
@@ -272,7 +272,7 @@ export class StudentsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN_KESISWAAN')
   @ApiBearerAuth('access-token')
-  @ApiOperation({ summary: 'Tautkan akun user (Account) ke data siswa secara manual oleh Admin' })
+  @ApiOperation({ summary: '[ADMIN_KESISWAAN] Tautkan akun user (Account) ke data siswa secara manual oleh Admin' })
   async bindManual(@Param('id') studentId: string, @Body() dto: BindManualDto) {
     const updated = await this.authService.bindIdentity(dto.accountId, studentId);
     return new MessageResponse(updated, 'Akun berhasil ditautkan manual ke data siswa');
@@ -290,7 +290,7 @@ export class StudentsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN_KESISWAAN')
   @ApiBearerAuth('access-token')
-  @ApiOperation({ summary: 'Perbarui data identitas siswa berdasarkan ID' })
+  @ApiOperation({ summary: '[ADMIN_KESISWAAN] Perbarui data identitas siswa berdasarkan ID' })
   async update(@Param('id') id: string, @Body() dto: UpdateStudentDto) {
     const updated = await this.studentsService.update(id, dto);
     return new MessageResponse(updated, 'Data siswa berhasil diperbarui');
@@ -300,7 +300,7 @@ export class StudentsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN_KESISWAAN')
   @ApiBearerAuth('access-token')
-  @ApiOperation({ summary: 'Nonaktifkan / Soft Delete data siswa berdasarkan ID' })
+  @ApiOperation({ summary: '[ADMIN_KESISWAAN] Nonaktifkan / Soft Delete data siswa berdasarkan ID' })
   async remove(@Param('id') id: string) {
     await this.studentsService.softDelete(id);
     return new MessageResponse(null, 'Siswa berhasil dinonaktifkan');

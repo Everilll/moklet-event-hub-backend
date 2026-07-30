@@ -171,7 +171,7 @@ export class AuthController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN_KESISWAAN')
   @ApiBearerAuth('access-token')
-  @ApiOperation({ summary: 'Membuat akun panitia baru (Khusus Kesiswaan)' })
+  @ApiOperation({ summary: '[ADMIN_KESISWAAN] Membuat akun panitia baru (Khusus Kesiswaan)' })
   @ApiCreatedResponse({ description: 'Akun panitia berhasil didaftarkan di sistem.' })
   async createPanitia(@Body() dto: CreatePanitiaDto) {
     const created = await this.authService.createPanitia(dto.email, dto.password);

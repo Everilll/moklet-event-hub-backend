@@ -29,7 +29,7 @@ export class ClassesController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN_KESISWAAN')
   @ApiBearerAuth('access-token')
-  @ApiOperation({ summary: 'Buat kelas baru secara manual' })
+  @ApiOperation({ summary: '[ADMIN_KESISWAAN] Buat kelas baru secara manual' })
   @ApiResponse({ status: 201, description: 'Kelas berhasil dibuat' })
   @ApiResponse({ status: 400, description: 'Input tidak valid / kelas sudah ada' })
   async create(@Body() dto: CreateClassDto) {
@@ -41,7 +41,7 @@ export class ClassesController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN_KESISWAAN')
   @ApiBearerAuth('access-token')
-  @ApiOperation({ summary: 'Buat banyak kelas sekaligus (Bulk Create)' })
+  @ApiOperation({ summary: '[ADMIN_KESISWAAN] Buat banyak kelas sekaligus (Bulk Create)' })
   @ApiResponse({ status: 201, description: 'Proses bulk create selesai' })
   async bulkCreate(@Body() dto: BulkCreateClassDto) {
     const result = await this.classesService.bulkCreate(dto.classes);
@@ -73,7 +73,7 @@ export class ClassesController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN_KESISWAAN')
   @ApiBearerAuth('access-token')
-  @ApiOperation({ summary: 'Perbarui data kelas berdasarkan ID' })
+  @ApiOperation({ summary: '[ADMIN_KESISWAAN] Perbarui data kelas berdasarkan ID' })
   @ApiResponse({ status: 200, description: 'Kelas berhasil diperbarui' })
   @ApiResponse({ status: 404, description: 'Kelas tidak ditemukan' })
   async update(@Param('id') id: string, @Body() dto: UpdateClassDto) {
@@ -85,7 +85,7 @@ export class ClassesController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN_KESISWAAN')
   @ApiBearerAuth('access-token')
-  @ApiOperation({ summary: 'Hapus data kelas berdasarkan ID' })
+  @ApiOperation({ summary: '[ADMIN_KESISWAAN] Hapus data kelas berdasarkan ID' })
   @ApiResponse({ status: 200, description: 'Kelas berhasil dihapus' })
   @ApiResponse({ status: 404, description: 'Kelas tidak ditemukan' })
   async remove(@Param('id') id: string) {

@@ -45,7 +45,7 @@ export class EventsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('PANITIA')
   @ApiBearerAuth('access-token')
-  @ApiOperation({ summary: 'Buat event baru' })
+  @ApiOperation({ summary: '[PANITIA] Buat event baru' })
   @ApiCreatedResponse({ description: 'Event berhasil dibuat' })
   @ApiResponse({ status: 400, description: 'Input data tidak valid' })
   @ApiResponse({ status: 403, description: 'Akses ditolak (Hanya PANITIA)' })
@@ -79,7 +79,7 @@ export class EventsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('PANITIA')
   @ApiBearerAuth('access-token')
-  @ApiOperation({ summary: 'Perbarui informasi detail event' })
+  @ApiOperation({ summary: '[PANITIA] Perbarui informasi detail event' })
   @ApiParam({ name: 'id', description: 'ID unik event' })
   @ApiOkResponse({ description: 'Event berhasil diperbarui' })
   @ApiResponse({ status: 400, description: 'Input data tidak valid' })
@@ -98,7 +98,7 @@ export class EventsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('PANITIA')
   @ApiBearerAuth('access-token')
-  @ApiOperation({ summary: 'Perbarui status alur/publikasi event' })
+  @ApiOperation({ summary: '[PANITIA] Perbarui status alur/publikasi event' })
   @ApiParam({ name: 'id', description: 'ID unik event' })
   @ApiOkResponse({ description: 'Status event berhasil diperbarui' })
   @ApiResponse({ status: 400, description: 'Status baru tidak valid' })
@@ -118,7 +118,7 @@ export class EventsController {
   @Roles('PANITIA')
   @ApiBearerAuth('access-token')
   @ApiConsumes('multipart/form-data')
-  @ApiOperation({ summary: 'Upload atau perbarui banner event' })
+  @ApiOperation({ summary: '[PANITIA] Upload atau perbarui banner event' })
   @ApiParam({ name: 'id', description: 'ID unik event' })
   @ApiBody({
     schema: {
@@ -151,7 +151,7 @@ export class EventsController {
   @Roles('PANITIA')
   @ApiBearerAuth('access-token')
   @ApiConsumes('multipart/form-data')
-  @ApiOperation({ summary: 'Upload atau perbarui berkas buku panduan (guidebook) event' })
+  @ApiOperation({ summary: '[PANITIA] Upload atau perbarui berkas buku panduan (guidebook) event' })
   @ApiParam({ name: 'id', description: 'ID unik event' })
   @ApiBody({
     schema: {
