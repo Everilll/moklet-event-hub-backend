@@ -36,10 +36,12 @@ export class OtpService {
     this.fromAddress = this.config.get<string>('SMTP_FROM')!;
     this.allowedHd = this.config.get<string>('GOOGLE_ALLOWED_HD')!;
 
+    const smtpPort = Number(this.config.get<string>('SMTP_PORT'));
+
     this.transporter = nodemailer.createTransport({
       host: this.config.get<string>('SMTP_HOST'),
-      port: this.config.get<number>('SMTP_PORT'),
-      secure: this.config.get<number>('SMTP_PORT') === 465,
+      port: smtpPort,
+      secure: smtpPort === 465,
       auth: {
         user: this.config.get<string>('SMTP_USER'),
         pass: this.config.get<string>('SMTP_PASSWORD'),
