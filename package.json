@@ -35,11 +35,11 @@
     "cloudinary": "^2.10.0",
     "exceljs": "^4.4.0",
     "joi": "^18.2.3",
-    "nodemailer": "^9.0.3",
     "passport-google-oauth20": "^2.0.0",
     "passport-jwt": "^4.0.1",
     "pg": "^8.22.0",
     "reflect-metadata": "^0.2.2",
+    "resend": "^6.18.1",
     "rxjs": "^7.8.1"
   },
   "devDependencies": {
@@ -52,7 +52,6 @@
     "@types/jest": "^30.0.0",
     "@types/multer": "^2.2.0",
     "@types/node": "^22.10.7",
-    "@types/nodemailer": "^8.0.1",
     "@types/passport-google-oauth20": "^2.0.17",
     "@types/passport-jwt": "^4.0.1",
     "@types/pg": "^8.20.0",
