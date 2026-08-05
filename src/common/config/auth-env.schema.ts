@@ -25,5 +25,5 @@ export const authEnvSchema = Joi.object({
 
   // Resend
   RESEND_API_KEY: Joi.string().required(),
-  EMAIL_FROM: Joi.string().required()
+  RESEND_EMAIL_FROM: Joi.string().required()
 });
