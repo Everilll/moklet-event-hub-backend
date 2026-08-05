@@ -23,10 +23,7 @@ export const authEnvSchema = Joi.object({
   CLOUDINARY_API_SECRET: Joi.string().required(),
   UPLOAD_MAX_FILE_SIZE: Joi.number().integer().positive().default(5242880),
 
-  // SMTP (kirim OTP)
-  SMTP_HOST: Joi.string().required(),
-  SMTP_PORT: Joi.number().integer().positive().default(587),
-  SMTP_USER: Joi.string().required(),
-  SMTP_PASSWORD: Joi.string().required(),
-  SMTP_FROM: Joi.string().required()
+  // Resend
+  RESEND_API_KEY: Joi.string().required(),
+  EMAIL_FROM: Joi.string().required()
 });

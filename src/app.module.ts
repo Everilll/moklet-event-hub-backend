@@ -23,6 +23,7 @@ import { ExportModule } from './export/export.module';
 import { TeamsModule } from './teams/teams.module';
 import { RegistrationsModule } from './registrations/registrations.module';
 import { SystemSettingModule } from './system-setting/system-setting.module';
+import { MailerModule } from './auth/mailer/mailer.module';
 
 @Module({
   imports: [
@@ -50,7 +51,8 @@ import { SystemSettingModule } from './system-setting/system-setting.module';
     AnnouncementsModule, 
     ExportModule, 
     TeamsModule, 
-    RegistrationsModule
+    RegistrationsModule,
+    MailerModule
   ],
   controllers: [AppController],
   providers: [

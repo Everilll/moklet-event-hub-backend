@@ -7,17 +7,15 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
 import { HashingService } from '../../common/hashing/hashing.service';
 import { assertStudentDomain } from '../utils/domain.util';
-import * as nodemailer from 'nodemailer';
 import { randomInt } from 'node:crypto';
+import { MailerService } from '../mailer/mailer.service';
 
 @Injectable()
 export class OtpService {
-  private readonly transporter: nodemailer.Transporter;
   private readonly length: number;
   private readonly ttlSeconds: number;
   private readonly maxRequestsPerWindow: number;
   private readonly windowSeconds: number;
-  private readonly fromAddress: string;
   private readonly allowedHd: string;
 
   private readonly requestLog = new Map<string, number[]>();
@@ -26,6 +24,7 @@ export class OtpService {
     private readonly config: ConfigService,
     private readonly prisma: PrismaService,
     private readonly hashing: HashingService,
+    private readonly mailer: MailerService,
   ) {
     this.length = this.config.get<number>('OTP_LENGTH')!;
     this.ttlSeconds = this.config.get<number>('OTP_TTL_SECONDS')!;
@@ -33,20 +32,7 @@ export class OtpService {
       'OTP_MAX_REQUESTS_PER_WINDOW',
     )!;
     this.windowSeconds = this.config.get<number>('OTP_WINDOW_SECONDS')!;
-    this.fromAddress = this.config.get<string>('SMTP_FROM')!;
     this.allowedHd = this.config.get<string>('GOOGLE_ALLOWED_HD')!;
-
-    const smtpPort = Number(this.config.get<string>('SMTP_PORT'));
-
-    this.transporter = nodemailer.createTransport({
-      host: this.config.get<string>('SMTP_HOST'),
-      port: smtpPort,
-      secure: smtpPort === 465,
-      auth: {
-        user: this.config.get<string>('SMTP_USER'),
-        pass: this.config.get<string>('SMTP_PASSWORD'),
-      },
-    });
   }
 
   private checkRateLimit(email: string) {
@@ -76,17 +62,13 @@ export class OtpService {
     const code = this.generateCode();
     const otpHash = this.hashing.hash(code);
     const otpExpiresAt = new Date(Date.now() + this.ttlSeconds * 1000);
+    const ttlMinutes = Math.floor(this.ttlSeconds / 60);
+
+    await this.mailer.sendOtp(email, code, ttlMinutes);
 
     await this.prisma.account.update({
       where: { email },
       data: { otpHash, otpExpiresAt },
-    });
-
-    await this.transporter.sendMail({
-      from: this.fromAddress,
-      to: email,
-      subject: 'Kode Verifikasi Moklet Event Hub',
-      text: `Kode OTP kamu: ${code} (berlaku ${Math.floor(this.ttlSeconds / 60)} menit). Jangan bagikan kode ini ke siapa pun.`,
     });
   }
 
